@@ -1,0 +1,6 @@
+web/node_modules/
+web/dist/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,20 @@
+PARCHE UNI BOCCHI MONITOR v1.5
+
+1) Detén Vite con Ctrl + C.
+2) Copia la carpeta "web" de este parche encima de:
+   C:\Proyectos\uni-bocchi-monitor\web
+3) Cuando Windows pregunte, elige "Reemplazar los archivos en el destino".
+4) No necesitas volver a instalar la extensión.
+5) Ejecuta:
+   cd C:\Proyectos\uni-bocchi-monitor\web
+   npm run dev
+6) En el navegador haz Ctrl + F5 una vez.
+
+CAMBIOS:
+- Se elimina el bloque "Actualización" del HUD.
+- Las Bocchis de fondo son más visibles.
+- Al recargar la página, Bocchi elige al azar un curso o sección para recomendar.
+- Cada curso tiene un botón "Bocchi" para analizar el curso completo.
+- Cada sección tiene un botón "Bocchi" para analizar esa sección exacta.
+- El objetivo elegido se mantiene mientras la página se actualiza silenciosamente en segundo plano.
+- En el próximo F5 se elige un objetivo aleatorio nuevo.

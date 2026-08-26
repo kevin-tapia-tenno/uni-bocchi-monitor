@@ -1,0 +1,12 @@
+UNI BOCCHI MONITOR
+===================
+
+1) Abre README_PASO_A_PASO.md
+2) Instala dependencias en web: npm install
+3) Ejecuta: npm run dev
+4) Carga la carpeta extension en brave://extensions/ > Cargar descomprimida
+5) Inicia sesión en Matrícula UNI
+6) Abre http://localhost:5173/
+
+El ZIP NO contiene node_modules.
+Los audios Bocchi reales deben colocarse después en web/public/audio/.

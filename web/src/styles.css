@@ -1,0 +1,688 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f7eef3;
+  background: #0f0b10;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --pink: #dc6496;
+  --pink-2: #c95486;
+  --pink-dark: #a83d6b;
+  --bg: #0f0b10;
+  --bg-2: #171119;
+  --surface: #211922;
+  --surface-2: #2a202c;
+  --surface-3: #35283a;
+  --border: rgba(255,255,255,.08);
+  --text: #f7eef3;
+  --soft: #cbbbc4;
+  --muted: #8e7d87;
+  --good: #6edd9c;
+  --warn: #ffd166;
+  --bad: #ff8fa8;
+  --cyan: #75c7e8;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); color: var(--text); }
+button, input, select { font: inherit; }
+button { color: inherit; }
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 88% -10%, rgba(220,100,150,.18), transparent 32%),
+    radial-gradient(circle at 15% 30%, rgba(168,61,107,.10), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,.01), transparent 25%);
+  z-index: -1;
+}
+
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: 245px minmax(0, 1fr); }
+.sidebar {
+  position: sticky; top: 0; height: 100vh; padding: 22px 15px; border-right: 1px solid var(--border);
+  background: rgba(22,13,18,.93); backdrop-filter: blur(14px); display: flex; flex-direction: column; gap: 28px;
+}
+.brand { display: flex; align-items: center; gap: 11px; min-height: 54px; }
+.brand-mascot { width: 48px; height: 48px; object-fit: contain; filter: drop-shadow(0 8px 20px rgba(220,100,150,.18)); }
+.brand-mascot-button { width: 50px; height: 50px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 13px; background: transparent; cursor: pointer; transition: transform .16s ease, background .16s ease, box-shadow .16s ease; }
+.brand-mascot-button:hover { transform: translateY(-1px) scale(1.05); background: rgba(220,100,150,.08); box-shadow: 0 8px 24px rgba(220,100,150,.09); }
+.brand-mascot-button:active { transform: scale(.94); }
+.brand-mascot-button:focus-visible { outline: 2px solid rgba(220,100,150,.72); outline-offset: 2px; }
+.brand strong { display: block; font-size: 16px; }
+.brand span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.nav-block { display: grid; gap: 7px; }
+.nav-item { border: 1px solid transparent; background: transparent; display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border-radius: 10px; color: var(--soft); cursor: pointer; text-align: left; }
+.nav-item:hover { background: rgba(220,100,150,.08); }
+.nav-item.active { background: linear-gradient(135deg, rgba(220,100,150,.20), rgba(168,61,107,.12)); border-color: rgba(220,100,150,.22); color: white; }
+.privacy-card { margin-top: auto; display: flex; gap: 10px; padding: 13px; border: 1px solid rgba(110,221,156,.16); border-radius: 12px; color: var(--good); background: rgba(110,221,156,.05); }
+.privacy-card strong { display: block; font-size: 12px; }
+.privacy-card span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+
+.main-panel { width: min(1440px, 100%); margin: 0 auto; padding: 28px 32px 48px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 18px; }
+.eyebrow { color: var(--pink); letter-spacing: .15em; font-size: 10px; font-weight: 800; }
+.topbar h1 { margin: 5px 0 3px; font-size: clamp(25px, 3vw, 36px); line-height: 1.05; }
+.topbar p { margin: 0; color: var(--muted); font-size: 12px; }
+.top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.connection, .icon-btn, .refresh-btn, .auto-btn, .small-primary { border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.connection { display: flex; align-items: center; gap: 7px; padding: 9px 11px; background: var(--surface); color: var(--soft); font-size: 11px; }
+.connection.ready { color: var(--good); border-color: rgba(110,221,156,.2); }
+.connection.session { color: var(--warn); }
+.connection.missing { color: var(--bad); }
+.icon-btn { position: relative; width: 39px; height: 39px; display: grid; place-items: center; background: var(--surface); }
+.icon-btn:hover, .connection:hover { background: var(--surface-2); }
+.mini-dot { position: absolute; right: 6px; top: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+.refresh-btn { display: flex; align-items: center; gap: 8px; min-height: 39px; padding: 0 14px; border-color: rgba(220,100,150,.28); background: linear-gradient(135deg, var(--pink-2), var(--pink-dark)); color: white; font-weight: 700; }
+.refresh-btn:disabled { opacity: .55; cursor: wait; }
+.spin { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.bocchi-tip { display: grid; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 10px 14px; border: 1px solid rgba(220,100,150,.18); border-radius: 14px; background: linear-gradient(90deg, rgba(220,100,150,.10), rgba(42,32,44,.76)); margin-bottom: 14px; }
+.bocchi-tip img { width: 58px; height: 58px; object-fit: contain; }
+.bocchi-tip span { display: block; color: var(--pink); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
+.bocchi-tip strong { display: block; margin-top: 4px; color: var(--soft); font-size: 12px; line-height: 1.45; }
+.bocchi-tip.danger { border-color: rgba(255,143,168,.35); }
+.bocchi-tip.warning { border-color: rgba(255,209,102,.26); }
+.critical-badge { display: flex; align-items: center; gap: 6px; color: var(--bad); padding: 7px 9px; border-radius: 9px; background: rgba(255,143,168,.08); font-size: 11px; font-weight: 700; }
+
+.setup-card { display: flex; gap: 14px; align-items: flex-start; padding: 16px; margin-bottom: 14px; border: 1px solid rgba(117,199,232,.22); background: rgba(117,199,232,.06); border-radius: 14px; }
+.warning-card { border-color: rgba(255,209,102,.22); background: rgba(255,209,102,.05); }
+.setup-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--surface-2); color: var(--pink); }
+.setup-card h2 { margin: 0; font-size: 14px; }
+.setup-card p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.setup-card code, .settings-panel code { color: var(--pink); }
+.small-primary { margin-top: 9px; padding: 8px 11px; background: rgba(220,100,150,.14); border-color: rgba(220,100,150,.22); color: var(--pink); }
+
+.hud-row { display: grid; grid-template-columns: 1.7fr repeat(3, 1fr); gap: 9px; margin-bottom: 14px; }
+.hud-stat { min-width: 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: 11px; background: rgba(33,25,34,.8); }
+.hud-stat span { display: block; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+.hud-stat strong { display: block; margin-top: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--soft); }
+
+.controls { display: grid; grid-template-columns: minmax(260px,1fr) 190px auto; gap: 9px; margin-bottom: 16px; }
+.search-box { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 40px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--muted); }
+.search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 12px; }
+.search-box input::placeholder { color: #756671; }
+.controls select { height: 40px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px; outline: 0; color: var(--soft); background: var(--surface); }
+.auto-btn { display: flex; align-items: center; gap: 7px; padding: 0 12px; background: var(--surface); color: var(--soft); }
+.auto-btn.on { color: var(--good); border-color: rgba(110,221,156,.2); }
+
+.course-list { min-width: 0; }
+.list-title { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin: 18px 0 10px; }
+.list-title h2 { margin: 0; font-size: 16px; }
+.list-title p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+.list-title > span { padding: 5px 8px; border-radius: 999px; background: var(--surface-2); color: var(--soft); font-size: 10px; }
+.course-card { overflow: hidden; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 13px; background: rgba(33,25,34,.90); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+.course-header { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 14px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.012); }
+.course-title-wrap { min-width: 0; display: flex; align-items: center; gap: 11px; }
+.course-code { flex: 0 0 auto; color: var(--pink); font-size: 11px; font-weight: 900; letter-spacing: .03em; }
+.course-title-wrap h3 { margin: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; }
+.course-meta { display: flex; align-items: center; gap: 13px; flex: 0 0 auto; color: var(--muted); font-size: 10px; }
+.section-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 25px; padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.055); }
+.section-row:last-child { border-bottom: 0; }
+.section-info, .vacancy-info { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.section-mainline { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.section-badge { flex: 0 0 auto; min-width: 29px; height: 23px; display: inline-grid; place-items: center; padding: 0 7px; border: 1px solid rgba(220,100,150,.22); border-radius: 6px; background: rgba(220,100,150,.10); color: var(--pink); font-size: 11px; font-weight: 900; }
+.professor { min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--soft); font-size: 10.5px; }
+.professor svg { flex: 0 0 auto; color: var(--muted); }
+.schedule-list { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding-left: 38px; margin-top: 6px; }
+.schedule-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 6px; border-radius: 5px; background: rgba(255,255,255,.04); color: var(--muted); font-size: 9.5px; line-height: 1.3; }
+.schedule-chip svg { flex: 0 0 auto; }
+.schedule-chip.muted { opacity: .72; }
+.dot { opacity: .45; }
+.vacancy-topline, .vacancy-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vacancy-topline { margin-bottom: 7px; color: var(--muted); font-size: 10px; }
+.vacancy-topline strong { color: var(--soft); font-size: 12px; }
+.free-pill { min-width: 76px; padding: 4px 7px; text-align: center; border-radius: 6px; font-size: 10px; font-weight: 800; }
+.free-pill.good { background: rgba(110,221,156,.12); color: var(--good); }
+.free-pill.warning { background: rgba(255,209,102,.12); color: var(--warn); }
+.free-pill.danger { background: rgba(255,143,168,.14); color: var(--bad); }
+.free-pill.full { background: rgba(142,125,135,.12); color: var(--muted); }
+.vacancy-bar { height: 9px; overflow: hidden; border-radius: 999px; background: #3a303c; }
+.vacancy-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #68bfe4, #dc6496); transition: width .25s ease; }
+.vacancy-foot { margin-top: 4px; color: #756671; font-size: 8.5px; }
+.course-message { padding: 12px 14px; color: var(--muted); font-size: 10px; }
+.course-message.error { color: var(--bad); }
+
+.empty-state { display: grid; place-items: center; text-align: center; min-height: 280px; border: 1px dashed var(--border); border-radius: 15px; background: rgba(33,25,34,.55); padding: 28px; }
+.empty-state img { width: 100px; height: 100px; object-fit: contain; opacity: .92; }
+.empty-state h3 { margin: 8px 0 4px; }
+.empty-state p { margin: 0; color: var(--muted); font-size: 11px; }
+
+.settings-panel { margin-top: 25px; padding: 17px; border: 1px solid var(--border); border-radius: 14px; background: rgba(33,25,34,.72); }
+.settings-panel h2 { margin: 0; font-size: 15px; }
+.settings-panel p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.setting-grid { display: grid; grid-template-columns: 2fr repeat(3,1fr); gap: 8px; margin-top: 13px; }
+.setting-grid label { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.setting-grid label > span { color: var(--muted); font-size: 9px; }
+.setting-grid input[type="range"] { min-width: 0; flex: 1; accent-color: var(--pink); }
+.setting-grid b { color: var(--soft); font-size: 9px; }
+.setting-grid button { margin-left: auto; border: 0; border-radius: 7px; padding: 5px 7px; cursor: pointer; background: var(--surface-3); color: var(--soft); font-size: 9px; }
+
+@media (max-width: 980px) {
+  .app-shell { grid-template-columns: 76px minmax(0,1fr); }
+  .sidebar { padding: 18px 10px; }
+  .brand > div, .nav-item { font-size: 0; }
+  .brand { justify-content: center; }
+  .brand-mascot { width: 45px; height: 45px; }
+  .nav-item { justify-content: center; padding: 11px; }
+  .nav-item svg { width: 18px; height: 18px; }
+  .privacy-card { padding: 10px; justify-content: center; }
+  .privacy-card > div { display: none; }
+  .main-panel { padding: 22px 18px 38px; }
+  .hud-row { grid-template-columns: repeat(2,1fr); }
+  .setting-grid { grid-template-columns: repeat(2,1fr); }
+}
+
+@media (max-width: 720px) {
+  .app-shell { display: block; }
+  .sidebar { position: relative; width: 100%; height: auto; flex-direction: row; align-items: center; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .brand { margin-right: auto; }
+  .brand > div { display: block; }
+  .nav-block { display: flex; gap: 5px; }
+  .nav-item { width: 38px; height: 38px; padding: 0; }
+  .privacy-card { display: none; }
+  .main-panel { padding: 18px 12px 32px; }
+  .topbar { align-items: flex-start; flex-direction: column; }
+  .top-actions { width: 100%; justify-content: flex-start; }
+  .bocchi-tip { grid-template-columns: 52px 1fr; }
+  .bocchi-tip img { width: 48px; height: 48px; }
+  .critical-badge { grid-column: 1/-1; justify-self: start; }
+  .hud-row { grid-template-columns: 1fr 1fr; }
+  .controls { grid-template-columns: 1fr; }
+  .section-row { grid-template-columns: 1fr; gap: 10px; }
+  .vacancy-info { padding-top: 8px; border-top: 1px dashed rgba(255,255,255,.07); }
+  .course-meta { display: none; }
+  .setting-grid { grid-template-columns: 1fr; }
+}
+
+/* ================================================================
+   BOCCHI ASSETS PATCH · música + decoraciones
+   ================================================================ */
+
+.music-mascot-btn {
+  position: relative;
+  width: 54px;
+  height: 46px;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid rgba(220,100,150,.22);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(220,100,150,.10), rgba(33,25,34,.96));
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.music-mascot-btn:hover { transform: translateY(-1px); border-color: rgba(220,100,150,.5); background: rgba(220,100,150,.12); }
+.music-mascot-btn.playing { box-shadow: 0 0 0 1px rgba(110,221,156,.10), 0 0 22px rgba(220,100,150,.14); border-color: rgba(110,221,156,.30); }
+.music-mascot-btn img {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 48px;
+  height: 48px;
+  transform: translateX(-50%);
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 7px rgba(0,0,0,.25));
+}
+.music-mascot-btn span {
+  position: absolute;
+  right: -5px;
+  top: -6px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid rgba(220,100,150,.25);
+  color: var(--pink);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+}
+.music-mascot-btn.playing span { color: var(--good); border-color: rgba(110,221,156,.25); }
+
+.sidebar-bocchi-scene {
+  margin-top: -10px;
+  padding: 5px;
+  border: 1px solid rgba(220,100,150,.10);
+  border-radius: 12px;
+  background: rgba(220,100,150,.035);
+  overflow: hidden;
+}
+.sidebar-bocchi-scene img {
+  display: block;
+  width: 100%;
+  height: 62px;
+  object-fit: cover;
+  object-position: center;
+  opacity: .72;
+  border-radius: 8px;
+  filter: saturate(.92) contrast(.96);
+}
+
+.decor-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: -17px;
+}
+.decor-mini {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 8px;
+  opacity: .68;
+  filter: saturate(.80) brightness(.86);
+  transition: opacity .16s ease, transform .16s ease, filter .16s ease;
+}
+.decor-mini:hover {
+  opacity: .95;
+  transform: translateY(-1px) scale(1.025);
+  filter: saturate(.96) brightness(.96);
+}
+
+.bocchi-tip.danger img {
+  width: 62px;
+  height: 62px;
+  border-radius: 11px;
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (max-width: 980px) {
+  .sidebar-bocchi-scene,
+  .decor-mini-grid { display: none; }
+  .music-mascot-btn { width: 48px; }
+  .music-mascot-btn img { width: 43px; height: 43px; }
+}
+
+@media (max-width: 720px) {
+  .music-mascot-btn { width: 46px; height: 40px; }
+  .music-mascot-btn img { width: 40px; height: 40px; }
+}
+
+/* ================================================================
+   PARCHE v1.2 · refresco silencioso + Bocchis distribuidas
+   ================================================================ */
+
+/* Reservamos pequeños márgenes laterales para stickers sin tapar datos. */
+.main-panel {
+  position: relative;
+  overflow: clip;
+  padding-left: 72px;
+  padding-right: 72px;
+}
+
+.main-panel > :not(.bocchi-float-layer) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Las decoraciones son puramente visuales y nunca capturan el mouse. */
+.bocchi-float-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bocchi-float {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  opacity: .56;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,.30));
+  user-select: none;
+}
+
+/* Distribución alternada a lo largo de toda la página. */
+.bocchi-float-1  { top: 118px;  right: 5px;  width: 72px; height: 72px; transform: rotate(4deg); }
+.bocchi-float-2  { top: 365px;  left: 7px;   width: 66px; height: 66px; transform: rotate(-5deg); }
+.bocchi-float-3  { top: 630px;  right: 4px;  width: 62px; height: 62px; transform: rotate(5deg); }
+.bocchi-float-4  { top: 900px;  left: 6px;   width: 69px; height: 69px; transform: rotate(-4deg); }
+.bocchi-float-5  { top: 1170px; right: 2px;  width: 64px; height: 64px; transform: rotate(6deg); }
+.bocchi-float-6  { top: 1440px; left: 4px;   width: 70px; height: 70px; transform: rotate(-7deg); }
+.bocchi-float-7  { top: 1710px; right: 3px;  width: 67px; height: 67px; transform: rotate(5deg); }
+.bocchi-float-8  { top: 1980px; left: 3px;   width: 72px; height: 72px; transform: rotate(-4deg); }
+.bocchi-float-9  { top: 2250px; right: 4px;  width: 64px; height: 64px; transform: rotate(6deg); }
+.bocchi-float-10 { top: 2520px; left: 4px;   width: 67px; height: 67px; transform: rotate(-6deg); }
+.bocchi-float-11 { top: 2790px; right: 2px;  width: 72px; height: 72px; transform: rotate(4deg); }
+.bocchi-float-12 { top: 3060px; left: 5px;   width: 68px; height: 68px; transform: rotate(-5deg); }
+.bocchi-float-13 { top: 3330px; right: 3px;  width: 71px; height: 71px; transform: rotate(5deg); }
+.bocchi-float-14 { top: 3600px; left: 3px;   width: 66px; height: 66px; transform: rotate(-5deg); }
+.bocchi-float-15 { top: 3870px; right: 4px;  width: 70px; height: 70px; transform: rotate(6deg); }
+.bocchi-float-16 { top: 4140px; left: 5px;   width: 65px; height: 65px; transform: rotate(-4deg); }
+
+/* El botón manual permanece estable. El refresco automático no cambia textos. */
+.refresh-btn:disabled {
+  cursor: default;
+  opacity: .72;
+}
+
+/* Las antiguas galerías concentradas en el sidebar ya no se usan. */
+.sidebar-bocchi-scene,
+.decor-mini-grid {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .main-panel {
+    padding-left: 42px;
+    padding-right: 42px;
+  }
+  .bocchi-float { width: 45px !important; height: 45px !important; opacity: .38; }
+}
+
+@media (max-width: 980px) {
+  .main-panel {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .bocchi-float-layer { display: none; }
+}
+
+@media (max-width: 720px) {
+  .main-panel {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ================================================================
+   PARCHE v1.4 · sin botón actualizar + Bocchi dinámica + fondos
+   ================================================================ */
+
+.main-panel {
+  position: relative;
+  overflow: clip;
+  isolation: isolate;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+.main-panel > :not(.bocchi-float-layer) {
+  position: relative;
+  z-index: 2;
+}
+
+.topbar p {
+  max-width: 760px;
+}
+
+.top-actions {
+  row-gap: 10px;
+}
+
+/* La franja de recomendación ahora cambia visualmente según el estado. */
+.bocchi-tip {
+  position: relative;
+  overflow: hidden;
+  grid-template-columns: 72px minmax(0,1fr) auto;
+  min-height: 84px;
+  background:
+    linear-gradient(90deg, rgba(220,100,150,.12), rgba(42,32,44,.82)),
+    radial-gradient(circle at 12% 50%, rgba(255,255,255,.07), transparent 36%);
+}
+.bocchi-tip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.02));
+  pointer-events: none;
+}
+.bocchi-tip img {
+  width: 66px;
+  height: 66px;
+  align-self: center;
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,.22));
+}
+.bocchi-tip span {
+  font-size: 10px;
+}
+.bocchi-tip strong {
+  position: relative;
+  z-index: 1;
+  font-size: 12.5px;
+}
+.bocchi-tip.good {
+  border-color: rgba(110,221,156,.20);
+  background: linear-gradient(90deg, rgba(110,221,156,.10), rgba(42,32,44,.84));
+}
+.bocchi-tip.half {
+  border-color: rgba(117,199,232,.22);
+  background: linear-gradient(90deg, rgba(117,199,232,.10), rgba(42,32,44,.84));
+}
+.bocchi-tip.half span {
+  color: var(--cyan);
+}
+.bocchi-tip.warning {
+  border-color: rgba(255,209,102,.26);
+  background: linear-gradient(90deg, rgba(255,209,102,.11), rgba(42,32,44,.84));
+}
+.bocchi-tip.warning span {
+  color: var(--warn);
+}
+.bocchi-tip.danger {
+  border-color: rgba(255,143,168,.35);
+  background: linear-gradient(90deg, rgba(255,143,168,.12), rgba(42,32,44,.86));
+}
+.bocchi-tip.danger span {
+  color: var(--bad);
+}
+.bocchi-tip.full {
+  border-color: rgba(255,255,255,.12);
+  background: linear-gradient(90deg, rgba(142,125,135,.15), rgba(42,32,44,.86));
+}
+.bocchi-tip.full span {
+  color: var(--soft);
+}
+.bocchi-tip.idle {
+  border-color: rgba(220,100,150,.18);
+}
+
+/* Fondos Bocchi distribuidos dentro del contenido, no solo en márgenes. */
+.bocchi-float-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bocchi-float {
+  position: absolute;
+  object-fit: contain;
+  user-select: none;
+  opacity: .10;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.18));
+}
+
+.bocchi-float-1  { top: 110px;  left: 46%; width: 110px; height: 110px; transform: rotate(-8deg); }
+.bocchi-float-2  { top: 320px;  right: 7%; width: 90px;  height: 90px;  transform: rotate(9deg); }
+.bocchi-float-3  { top: 470px;  left: 6%;  width: 94px;  height: 94px;  transform: rotate(-10deg); }
+.bocchi-float-4  { top: 760px;  right: 18%; width: 120px; height: 120px; transform: rotate(7deg); }
+.bocchi-float-5  { top: 1010px; left: 28%; width: 105px; height: 105px; transform: rotate(-6deg); }
+.bocchi-float-6  { top: 1270px; right: 4%; width: 88px;  height: 88px;  transform: rotate(8deg); }
+.bocchi-float-7  { top: 1510px; left: 9%;  width: 118px; height: 118px; transform: rotate(-7deg); }
+.bocchi-float-8  { top: 1780px; right: 30%; width: 96px;  height: 96px;  transform: rotate(8deg); }
+.bocchi-float-9  { top: 2040px; left: 51%; width: 88px;  height: 88px;  transform: rotate(-8deg); }
+.bocchi-float-10 { top: 2280px; right: 8%; width: 118px; height: 118px; transform: rotate(10deg); }
+.bocchi-float-11 { top: 2550px; left: 12%; width: 95px;  height: 95px;  transform: rotate(-6deg); }
+.bocchi-float-12 { top: 2830px; right: 35%; width: 106px; height: 106px; transform: rotate(7deg); }
+
+/* Cartas y bloques flotan por encima de las decoraciones. */
+.course-card,
+.hud-stat,
+.search-box,
+.controls select,
+.auto-btn,
+.settings-panel,
+.setup-card,
+.empty-state,
+.connection,
+.icon-btn,
+.music-mascot-btn {
+  position: relative;
+  z-index: 2;
+}
+
+/* La imagen de estado se ve tipo sticker transparente. */
+.empty-state img {
+  width: 94px;
+  height: 94px;
+}
+
+/* En esta versión el botón actualizar ya no existe. */
+.refresh-btn {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .bocchi-float {
+    opacity: .08;
+  }
+  .bocchi-float-1,
+  .bocchi-float-4,
+  .bocchi-float-7,
+  .bocchi-float-10 {
+    width: 88px;
+    height: 88px;
+  }
+}
+
+@media (max-width: 980px) {
+  .main-panel {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .bocchi-float {
+    opacity: .06;
+  }
+  .bocchi-tip {
+    grid-template-columns: 64px minmax(0,1fr) auto;
+  }
+  .bocchi-tip img {
+    width: 58px;
+    height: 58px;
+  }
+}
+
+@media (max-width: 720px) {
+  .main-panel {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .bocchi-float-layer {
+    display: none;
+  }
+  .bocchi-tip {
+    grid-template-columns: 56px 1fr;
+    min-height: auto;
+  }
+  .bocchi-tip img {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+/* ================================================================
+   PARCHE v1.5 · recomendación elegible + fondos más visibles
+   ================================================================ */
+
+/* Más visibles, pero siguen siendo decoración de fondo. */
+.bocchi-float {
+  opacity: .22;
+  filter: drop-shadow(0 12px 22px rgba(0,0,0,.24));
+}
+
+/* Botones para mandar un curso o una sección a "Bocchi recomienda". */
+.bocchi-recommend-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(220,100,150,.22);
+  background: rgba(220,100,150,.08);
+  color: var(--soft);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease, color .14s ease;
+}
+
+.bocchi-recommend-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(220,100,150,.55);
+  background: rgba(220,100,150,.16);
+  color: var(--text);
+}
+
+.bocchi-recommend-btn.active {
+  border-color: rgba(220,100,150,.68);
+  background: rgba(220,100,150,.22);
+  color: #ffd6e6;
+  box-shadow: 0 0 0 1px rgba(220,100,150,.08), 0 6px 18px rgba(220,100,150,.10);
+}
+
+.course-recommend {
+  margin-left: 8px;
+}
+
+.section-recommend {
+  margin-left: 7px;
+  padding: 4px 7px;
+}
+
+.course-card.bocchi-course-selected {
+  border-color: rgba(220,100,150,.38);
+  box-shadow: inset 3px 0 0 rgba(220,100,150,.50);
+}
+
+.section-row.bocchi-selected {
+  background: linear-gradient(90deg, rgba(220,100,150,.055), transparent 70%);
+  box-shadow: inset 2px 0 0 rgba(220,100,150,.46);
+}
+
+/* La tarjeta de recomendación se mantiene compacta y muestra el estado del objetivo elegido. */
+.bocchi-tip img {
+  object-fit: contain;
+}
+
+@media (max-width: 1180px) {
+  .bocchi-float {
+    opacity: .17;
+  }
+}
+
+@media (max-width: 980px) {
+  .bocchi-float {
+    opacity: .13;
+  }
+
+  .course-title-wrap {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .section-mainline {
+    flex-wrap: wrap;
+  }
+
+  .section-recommend {
+    margin-left: 0;
+  }
+}

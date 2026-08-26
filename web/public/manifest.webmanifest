@@ -1,0 +1,12 @@
+{
+  "name": "UNI Bocchi Monitor",
+  "short_name": "Bocchi Monitor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0b10",
+  "theme_color": "#dc6496",
+  "icons": [
+    { "src": "/assets/bocchi/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/bocchi/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
