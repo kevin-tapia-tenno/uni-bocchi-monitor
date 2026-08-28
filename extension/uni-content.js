@@ -4,6 +4,7 @@
   const CONFIG = {
     concurrency: 4,
     tableTimeoutMs: 18000,
+    turnTimeoutMs: 15000,
   }
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -128,13 +129,149 @@
     }
   }
 
+  function normalizeText(value = '') {
+    return value
+      .replace(/\u00a0/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\r/g, '')
+      .trim()
+  }
+
+  function monthIndex(name = '') {
+    const key = name
+      .toLocaleLowerCase('es-PE')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\./g, '')
+      .slice(0, 3)
+
+    const months = {
+      ene: 0,
+      feb: 1,
+      mar: 2,
+      abr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      ago: 7,
+      sep: 8,
+      set: 8,
+      oct: 9,
+      nov: 10,
+      dic: 11,
+    }
+
+    return Object.prototype.hasOwnProperty.call(months, key) ? months[key] : null
+  }
+
+  function parseSpanishDate(match) {
+    if (!match) return null
+    const day = Number(match[1])
+    const month = monthIndex(match[2])
+    const year = Number(match[3])
+    let hour = Number(match[4])
+    const minute = Number(match[5])
+    const meridiem = String(match[6] || '').toLocaleLowerCase('es-PE')
+
+    if (month === null || !Number.isFinite(day) || !Number.isFinite(year) || !Number.isFinite(hour) || !Number.isFinite(minute)) {
+      return null
+    }
+
+    if (meridiem === 'a' && hour === 12) hour = 0
+    if (meridiem === 'p' && hour !== 12) hour += 12
+
+    const date = new Date(year, month, day, hour, minute, 0, 0)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  function dateMatches(text) {
+    const regex = /(\d{1,2})\s+([a-záéíóúñ.]+)\s+(\d{4}),\s*(\d{1,2}):(\d{2})\s*([ap])\.?\s*m\.?/gi
+    return [...text.matchAll(regex)]
+  }
+
+  async function waitForTurnContent() {
+    const started = Date.now()
+    while (Date.now() - started < CONFIG.turnTimeoutMs) {
+      const text = normalizeText(document.body?.innerText || '')
+      if (/grupo\s+de\s+matr[ií]cula/i.test(text) && /\b\d{4}\b/.test(text)) return text
+      await sleep(250)
+    }
+    return normalizeText(document.body?.innerText || '')
+  }
+
+  function collectTurnFromText(text) {
+    const lines = text.split('\n').map((line) => normalizeText(line)).filter(Boolean)
+    const fullText = lines.join('\n')
+
+    const groupMatch = fullText.match(/\b(\d{4})\s*[—–-]\s*([^\n]+)/i)
+    if (!groupMatch) {
+      return {
+        detected: false,
+        pageMessage: /todav[ií]a\s+no\s+puedes\s+matricularte/i.test(fullText)
+          ? 'Todavía no puedes matricularte'
+          : '',
+      }
+    }
+
+    const groupCode = groupMatch[1]
+    const groupName = normalizeText(groupMatch[2]).replace(/\s{2,}.*/, '')
+    const groupIndex = fullText.indexOf(groupMatch[0])
+    const nearby = fullText.slice(Math.max(0, groupIndex - 220), groupIndex + 700)
+    const matches = dateMatches(nearby)
+    const parsed = matches.map(parseSpanishDate).filter(Boolean)
+
+    const start = parsed[0] || null
+    const end = parsed[1] || null
+    const pageSaysCanEnroll = /ya\s+puedes\s+matricularte|puedes\s+matricularte|matr[ií]cula\s+disponible/i.test(nearby)
+      && !/todav[ií]a\s+no\s+puedes\s+matricularte/i.test(nearby)
+    const blockedByTime = /todav[ií]a\s+no\s+puedes\s+matricularte|a[uú]n\s+no\s+es\s+tu\s+horario/i.test(nearby)
+
+    return {
+      detected: true,
+      groupCode,
+      groupName,
+      startAt: start?.toISOString() || null,
+      endAt: end?.toISOString() || null,
+      pageSaysCanEnroll,
+      blockedByTime,
+      pageMessage: blockedByTime
+        ? 'Aún no es tu horario de matrícula.'
+        : pageSaysCanEnroll
+          ? 'Tu horario de matrícula está disponible.'
+          : '',
+    }
+  }
+
+  async function collectTurn() {
+    if (!location.pathname.includes('/matricula')) {
+      throw new Error('TURN_PAGE_REQUIRED')
+    }
+
+    if (!getAccessToken()) throw new Error('SESSION_REQUIRED')
+
+    const text = await waitForTurnContent()
+    const turn = collectTurnFromText(text)
+
+    return {
+      ...turn,
+      collectedAt: new Date().toISOString(),
+      sourcePath: location.pathname,
+    }
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type !== 'UNI_COLLECT') return
+    if (message?.type === 'UNI_COLLECT') {
+      collect()
+        .then((data) => sendResponse({ ok: true, data }))
+        .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
+      return true
+    }
 
-    collect()
-      .then((data) => sendResponse({ ok: true, data }))
-      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
-
-    return true
+    if (message?.type === 'UNI_COLLECT_TURN') {
+      collectTurn()
+        .then((data) => sendResponse({ ok: true, data }))
+        .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
+      return true
+    }
   })
 })()

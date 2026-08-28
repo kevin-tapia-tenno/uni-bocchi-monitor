@@ -35,6 +35,14 @@ export async function syncUni() {
   return request('SYNC', {}, 60000)
 }
 
+export async function getEnrollmentTurn() {
+  return request('TURN', {}, 30000)
+}
+
 export async function openUni() {
-  return request('OPEN_UNI', {}, 5000)
+  return request('OPEN_UNI', { path: '/cursos-disponibles' }, 5000)
+}
+
+export async function openEnrollment() {
+  return request('OPEN_UNI', { path: '/matricula' }, 5000)
 }

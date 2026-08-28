@@ -1,20 +1,48 @@
-PARCHE UNI BOCCHI MONITOR v1.5
+UNI BOCCHI MONITOR · PARCHE v1.6
+================================
 
-1) Detén Vite con Ctrl + C.
+REQUISITO:
+- Tener aplicada la versión v1.5 del monitor.
+- Este parche TAMBIÉN modifica la extensión UNI Bocchi Bridge.
+
+1) Cierra el servidor local si lo tienes abierto (Ctrl + C).
+
 2) Copia la carpeta "web" de este parche encima de:
    C:\Proyectos\uni-bocchi-monitor\web
-3) Cuando Windows pregunte, elige "Reemplazar los archivos en el destino".
-4) No necesitas volver a instalar la extensión.
-5) Ejecuta:
+   y acepta REEMPLAZAR los archivos.
+
+3) Copia la carpeta "extension" de este parche encima de:
+   C:\Proyectos\uni-bocchi-monitor\extension
+   y acepta REEMPLAZAR.
+   NO borres la carpeta icons existente.
+
+4) MUY IMPORTANTE: recarga la extensión.
+   Brave: brave://extensions/
+   Chrome: chrome://extensions/
+   Edge: edge://extensions/
+   Opera: opera://extensions/
+
+   Busca "UNI Bocchi Bridge" y pulsa RECARGAR.
+
+5) Recarga también cualquier pestaña abierta de matricula-alumno.uni.edu.pe.
+
+6) Para probar localmente:
    cd C:\Proyectos\uni-bocchi-monitor\web
    npm run dev
-6) En el navegador haz Ctrl + F5 una vez.
 
-CAMBIOS:
-- Se elimina el bloque "Actualización" del HUD.
-- Las Bocchis de fondo son más visibles.
-- Al recargar la página, Bocchi elige al azar un curso o sección para recomendar.
-- Cada curso tiene un botón "Bocchi" para analizar el curso completo.
-- Cada sección tiene un botón "Bocchi" para analizar esa sección exacta.
-- El objetivo elegido se mantiene mientras la página se actualiza silenciosamente en segundo plano.
-- En el próximo F5 se elige un objetivo aleatorio nuevo.
+7) Para publicar en Vercel (si ya está conectado a GitHub):
+   cd C:\Proyectos\uni-bocchi-monitor
+   git add .
+   git commit -m "Agregar turno y plan de matricula"
+   git push
+
+   Vercel desplegará la carpeta web automáticamente.
+
+8) En la web nueva:
+   - Pulsa "Activar alertas" una vez.
+   - Si el navegador pide permiso de notificaciones, acepta si quieres avisos del sistema.
+   - Marca "Vigilar" en tus cursos/secciones prioritarios.
+
+IMPORTANTE:
+La web NO intenta saltarse el turno ni matricular automáticamente.
+Solo muestra el horario, cuenta regresiva, vacantes y abre la página oficial cuando tú lo decidas.

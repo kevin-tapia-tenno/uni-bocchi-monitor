@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UNI Bocchi Bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Puente local entre UNI Bocchi Monitor y la sesión que ya tienes iniciada en Matrícula UNI.",
   "permissions": [
     "tabs",

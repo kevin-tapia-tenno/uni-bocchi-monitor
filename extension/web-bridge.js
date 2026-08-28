@@ -24,9 +24,16 @@
       return
     }
 
-    if (msg.type !== 'SYNC' && msg.type !== 'OPEN_UNI') return
+    const typeMap = {
+      SYNC: 'WEB_SYNC',
+      TURN: 'WEB_TURN',
+      OPEN_UNI: 'WEB_OPEN_UNI',
+    }
 
-    chrome.runtime.sendMessage({ type: msg.type === 'SYNC' ? 'WEB_SYNC' : 'WEB_OPEN_UNI' }, (response) => {
+    const runtimeType = typeMap[msg.type]
+    if (!runtimeType) return
+
+    chrome.runtime.sendMessage({ type: runtimeType, payload: msg.payload || {} }, (response) => {
       const runtimeError = chrome.runtime.lastError
       if (runtimeError) {
         reply(msg.requestId, false, null, runtimeError.message)

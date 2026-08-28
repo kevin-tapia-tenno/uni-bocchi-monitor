@@ -1,4 +1,4 @@
-import { Clock3, MapPin, Sparkles, UserRound } from 'lucide-react'
+import { Clock3, MapPin, Sparkles, Star, UserRound } from 'lucide-react'
 import { totalFree, urgencyClass } from '../lib/vacancy'
 
 function prettyProfessor(value) {
@@ -12,7 +12,15 @@ function unique(arr) {
   return [...new Set(arr.filter(Boolean))]
 }
 
-function SectionRow({ course, section, onRecommend, selectedTarget }) {
+function watched(watchlist, target) {
+  return (watchlist || []).some((item) => {
+    if (item.type !== target.type || item.codigo !== target.codigo) return false
+    if (item.type === 'section') return item.seccion === target.seccion
+    return true
+  })
+}
+
+function SectionRow({ course, section, onRecommend, selectedTarget, watchlist, onToggleWatch }) {
   const max = Number(section.vacantesMaximas || 0)
   const occupied = Number(section.vacantesOcupadas || 0)
   const free = Number(section.vacantesDisponibles || 0)
@@ -20,12 +28,14 @@ function SectionRow({ course, section, onRecommend, selectedTarget }) {
   const schedules = Array.isArray(section.horario) ? section.horario : []
   const professors = unique(schedules.map((h) => h.docente?.trim())).map(prettyProfessor)
   const professor = professors.length ? professors.join(' / ') : 'Profesor no publicado'
+  const target = { type: 'section', codigo: course.codigo, seccion: section.seccion }
   const isSelected = selectedTarget?.type === 'section'
     && selectedTarget.codigo === course.codigo
     && selectedTarget.seccion === section.seccion
+  const isWatched = watched(watchlist, target)
 
   return (
-    <div className={`section-row ${isSelected ? 'bocchi-selected' : ''}`}>
+    <div className={`section-row ${isSelected ? 'bocchi-selected' : ''} ${isWatched ? 'watch-selected' : ''}`}>
       <div className="section-info">
         <div className="section-mainline">
           <span className="section-badge">{section.seccion}</span>
@@ -34,8 +44,16 @@ function SectionRow({ course, section, onRecommend, selectedTarget }) {
           </span>
           <button
             type="button"
+            className={`watch-btn ${isWatched ? 'active' : ''}`}
+            onClick={() => onToggleWatch?.(target)}
+            title={isWatched ? `Dejar de vigilar ${course.codigo} sección ${section.seccion}` : `Vigilar ${course.codigo} sección ${section.seccion}`}
+          >
+            <Star size={13} fill={isWatched ? 'currentColor' : 'none'} /> {isWatched ? 'Vigilando' : 'Vigilar'}
+          </button>
+          <button
+            type="button"
             className={`bocchi-recommend-btn section-recommend ${isSelected ? 'active' : ''}`}
-            onClick={() => onRecommend?.({ type: 'section', codigo: course.codigo, seccion: section.seccion })}
+            onClick={() => onRecommend?.(target)}
             title={`Pedir recomendación de Bocchi sobre ${course.codigo} sección ${section.seccion}`}
           >
             <Sparkles size={13} /> Bocchi
@@ -68,20 +86,30 @@ function SectionRow({ course, section, onRecommend, selectedTarget }) {
   )
 }
 
-export default function CourseCard({ course, onRecommend, selectedTarget }) {
+export default function CourseCard({ course, onRecommend, selectedTarget, watchlist, onToggleWatch }) {
   const total = totalFree(course)
+  const target = { type: 'course', codigo: course.codigo }
   const isSelected = selectedTarget?.type === 'course' && selectedTarget.codigo === course.codigo
+  const isWatched = watched(watchlist, target)
 
   return (
-    <article className={`course-card ${isSelected ? 'bocchi-course-selected' : ''}`}>
+    <article className={`course-card ${isSelected ? 'bocchi-course-selected' : ''} ${isWatched ? 'watch-course-selected' : ''}`}>
       <header className="course-header">
         <div className="course-title-wrap">
           <span className="course-code">{course.codigo}</span>
           <h3>{course.nombre}</h3>
           <button
             type="button"
+            className={`watch-btn course-watch ${isWatched ? 'active' : ''}`}
+            onClick={() => onToggleWatch?.(target)}
+            title={isWatched ? `Dejar de vigilar ${course.codigo}` : `Vigilar todas las secciones de ${course.codigo}`}
+          >
+            <Star size={13} fill={isWatched ? 'currentColor' : 'none'} /> {isWatched ? 'Vigilando' : 'Vigilar curso'}
+          </button>
+          <button
+            type="button"
             className={`bocchi-recommend-btn course-recommend ${isSelected ? 'active' : ''}`}
-            onClick={() => onRecommend?.({ type: 'course', codigo: course.codigo })}
+            onClick={() => onRecommend?.(target)}
             title={`Pedir recomendación de Bocchi sobre ${course.codigo}`}
           >
             <Sparkles size={13} /> Bocchi
@@ -104,6 +132,8 @@ export default function CourseCard({ course, onRecommend, selectedTarget }) {
             section={section}
             onRecommend={onRecommend}
             selectedTarget={selectedTarget}
+            watchlist={watchlist}
+            onToggleWatch={onToggleWatch}
           />
         ))
       ) : (

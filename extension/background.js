@@ -1,5 +1,9 @@
-const UNI_URL = 'https://matricula-alumno.uni.edu.pe/cursos-disponibles'
+const UNI_BASE = 'https://matricula-alumno.uni.edu.pe'
+const COURSES_URL = `${UNI_BASE}/cursos-disponibles`
+const ENROLLMENT_URL = `${UNI_BASE}/matricula`
+
 let workerTabId = null
+let turnTabId = null
 
 function isAllowedWebUrl(url = '') {
   try {
@@ -39,7 +43,7 @@ async function getValidWorkerTab() {
   }
 
   const existing = await chrome.tabs.query({
-    url: 'https://matricula-alumno.uni.edu.pe/cursos-disponibles*',
+    url: `${COURSES_URL}*`,
   })
 
   if (existing.length) {
@@ -47,7 +51,7 @@ async function getValidWorkerTab() {
     return existing[0]
   }
 
-  const tab = await chrome.tabs.create({ url: UNI_URL, active: false })
+  const tab = await chrome.tabs.create({ url: COURSES_URL, active: false })
   workerTabId = tab.id
   const loaded = await waitTabComplete(tab.id)
 
@@ -59,11 +63,41 @@ async function getValidWorkerTab() {
   return loaded
 }
 
-async function sendToUniTab(tabId, attempts = 30) {
+async function getTurnTab() {
+  if (turnTabId !== null) {
+    try {
+      const tab = await chrome.tabs.get(turnTabId)
+      if (tab?.url?.includes('matricula-alumno.uni.edu.pe/matricula')) return tab
+    } catch {}
+    turnTabId = null
+  }
+
+  const existing = await chrome.tabs.query({
+    url: `${ENROLLMENT_URL}*`,
+  })
+
+  if (existing.length) {
+    turnTabId = existing[0].id
+    return existing[0]
+  }
+
+  const tab = await chrome.tabs.create({ url: ENROLLMENT_URL, active: false })
+  turnTabId = tab.id
+  const loaded = await waitTabComplete(tab.id)
+
+  if (!loaded.url?.includes('matricula-alumno.uni.edu.pe/matricula')) {
+    await chrome.tabs.update(tab.id, { active: true }).catch(() => {})
+    throw new Error('SESSION_REQUIRED')
+  }
+
+  return loaded
+}
+
+async function sendToUniTab(tabId, message, attempts = 30) {
   let lastError
   for (let i = 0; i < attempts; i += 1) {
     try {
-      return await chrome.tabs.sendMessage(tabId, { type: 'UNI_COLLECT' })
+      return await chrome.tabs.sendMessage(tabId, message)
     } catch (error) {
       lastError = error
       await new Promise((resolve) => setTimeout(resolve, 250))
@@ -72,24 +106,31 @@ async function sendToUniTab(tabId, attempts = 30) {
   throw lastError || new Error('UNI_CONTENT_NOT_READY')
 }
 
+
+async function reloadAndSend(tabId, message) {
+  await chrome.tabs.reload(tabId)
+  await waitTabComplete(tabId)
+  return sendToUniTab(tabId, message)
+}
+
 async function sync() {
   const tab = await getValidWorkerTab()
   let response
 
   try {
-    response = await sendToUniTab(tab.id)
+    response = await sendToUniTab(tab.id, { type: 'UNI_COLLECT' })
   } catch (error) {
     const current = await chrome.tabs.get(tab.id).catch(() => null)
     if (!current?.url?.includes('matricula-alumno.uni.edu.pe/cursos-disponibles')) {
       if (current?.id) await chrome.tabs.update(current.id, { active: true }).catch(() => {})
       return { ok: false, error: 'SESSION_REQUIRED' }
     }
-    throw error
+    response = await reloadAndSend(tab.id, { type: 'UNI_COLLECT' })
   }
 
   if (!response?.ok) {
     if (response?.error === 'SESSION_REQUIRED' || response?.error === 'COURSES_PAGE_REQUIRED') {
-      await chrome.tabs.update(tab.id, { active: true })
+      await chrome.tabs.update(tab.id, { active: true }).catch(() => {})
     }
     return response
   }
@@ -97,18 +138,55 @@ async function sync() {
   return response
 }
 
-async function openUni() {
-  const existing = await chrome.tabs.query({ url: 'https://matricula-alumno.uni.edu.pe/*' })
-  if (existing.length) {
-    await chrome.tabs.update(existing[0].id, { active: true })
+async function collectTurn() {
+  const tab = await getTurnTab()
+  let response
+
+  try {
+    response = await sendToUniTab(tab.id, { type: 'UNI_COLLECT_TURN' })
+  } catch (error) {
+    const current = await chrome.tabs.get(tab.id).catch(() => null)
+    if (!current?.url?.includes('matricula-alumno.uni.edu.pe/matricula')) {
+      if (current?.id) await chrome.tabs.update(current.id, { active: true }).catch(() => {})
+      return { ok: false, error: 'SESSION_REQUIRED' }
+    }
+    response = await reloadAndSend(tab.id, { type: 'UNI_COLLECT_TURN' })
+  }
+
+  if (!response?.ok && response?.error === 'SESSION_REQUIRED') {
+    await chrome.tabs.update(tab.id, { active: true }).catch(() => {})
+  }
+
+  return response
+}
+
+function safeUniPath(path = '') {
+  if (path === '/matricula' || path.startsWith('/matricula?')) return '/matricula'
+  if (path === '/cursos-disponibles' || path.startsWith('/cursos-disponibles?')) return '/cursos-disponibles'
+  return '/matricula'
+}
+
+async function openUni(path = '/cursos-disponibles') {
+  const finalPath = safeUniPath(path)
+  const finalUrl = `${UNI_BASE}${finalPath}`
+  const existing = await chrome.tabs.query({ url: `${UNI_BASE}/*` })
+
+  const exact = existing.find((tab) => {
+    try { return new URL(tab.url).pathname === finalPath } catch { return false }
+  })
+
+  if (exact?.id) {
+    await chrome.tabs.update(exact.id, { active: true })
     return { ok: true }
   }
-  await chrome.tabs.create({ url: UNI_URL, active: true })
+
+  await chrome.tabs.create({ url: finalUrl, active: true })
   return { ok: true }
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (tabId === workerTabId) workerTabId = null
+  if (tabId === turnTabId) turnTabId = null
 })
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -118,7 +196,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === 'WEB_OPEN_UNI') {
-    openUni().then(sendResponse).catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
+    openUni(message?.payload?.path)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
+    return true
+  }
+
+  if (message?.type === 'WEB_TURN') {
+    collectTurn()
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
     return true
   }
 
