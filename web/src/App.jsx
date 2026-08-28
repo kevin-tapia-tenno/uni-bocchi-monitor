@@ -643,9 +643,6 @@ function App() {
             <strong>{tip.text}</strong>
           </div>
           {criticalCount ? <div className="critical-badge"><AlertTriangle size={15}/>{criticalCount} crítica{criticalCount === 1 ? '' : 's'}</div> : null}
-          <div className="bocchi-tip-bg" aria-hidden="true">
-            <img src="/assets/bocchi/floating/float-11.png" alt="" />
-          </div>
         </section>
 
         {bridge === 'missing' ? (
