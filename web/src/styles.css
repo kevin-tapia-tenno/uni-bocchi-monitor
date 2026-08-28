@@ -428,6 +428,7 @@ body::before {
   overflow: hidden;
   grid-template-columns: 72px minmax(0,1fr) auto;
   min-height: 84px;
+  padding-right: 118px;
   background:
     linear-gradient(90deg, rgba(220,100,150,.12), rgba(42,32,44,.82)),
     radial-gradient(circle at 12% 50%, rgba(255,255,255,.07), transparent 36%);
@@ -452,6 +453,32 @@ body::before {
   position: relative;
   z-index: 1;
   font-size: 12.5px;
+}
+
+.bocchi-tip > * {
+  position: relative;
+  z-index: 2;
+}
+
+.bocchi-tip-bg {
+  position: absolute;
+  right: 14px;
+  bottom: -8px;
+  width: 112px;
+  height: 112px;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .24;
+  display: flex;
+  align-items: end;
+  justify-content: end;
+}
+
+.bocchi-tip-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,.22));
 }
 .bocchi-tip.good {
   border-color: rgba(110,221,156,.20);
@@ -508,7 +535,7 @@ body::before {
 
 .bocchi-float-1  { top: 110px;  left: 46%; width: 110px; height: 110px; transform: rotate(-8deg); }
 .bocchi-float-2  { top: 320px;  right: 7%; width: 90px;  height: 90px;  transform: rotate(9deg); }
-.bocchi-float-3  { top: 470px;  left: 6%;  width: 94px;  height: 94px;  transform: rotate(-10deg); }
+.bocchi-float-3  { top: 470px;  right: 6%; left: auto; width: 94px;  height: 94px;  transform: rotate(-10deg); }
 .bocchi-float-4  { top: 760px;  right: 18%; width: 120px; height: 120px; transform: rotate(7deg); }
 .bocchi-float-5  { top: 1010px; left: 28%; width: 105px; height: 105px; transform: rotate(-6deg); }
 .bocchi-float-6  { top: 1270px; right: 4%; width: 88px;  height: 88px;  transform: rotate(8deg); }
@@ -1027,4 +1054,32 @@ body::before {
   .turn-foot { clear: both; margin-top: 10px; }
   .watch-card { grid-template-columns: minmax(0,1fr) auto; }
   .watch-card-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+
+/* ================================================================
+   HOTFIX v1.6.1 · Bocchi de fondo de 'Todo chill' movida a la derecha
+   ================================================================ */
+@media (max-width: 980px) {
+  .bocchi-tip {
+    padding-right: 92px;
+  }
+
+  .bocchi-tip-bg {
+    width: 84px;
+    height: 84px;
+    right: 10px;
+    bottom: -4px;
+    opacity: .20;
+  }
+}
+
+@media (max-width: 720px) {
+  .bocchi-tip {
+    padding-right: 14px;
+  }
+
+  .bocchi-tip-bg {
+    display: none;
+  }
 }
