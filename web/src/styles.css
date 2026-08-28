@@ -1083,3 +1083,13 @@ body::before {
     display: none;
   }
 }
+
+
+/* ================================================================
+   HOTFIX v1.6.3 · quitar Bocchi flotante de la izquierda que tapa "Todo chill"
+   ================================================================ */
+/* Se mantiene la Bocchi decorativa de la derecha dentro de la franja.
+   Solo se oculta la Bocchi flotante global que cae a la izquierda. */
+.bocchi-float-2 {
+  display: none !important;
+}
