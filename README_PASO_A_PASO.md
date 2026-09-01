@@ -1,54 +1,84 @@
-# UNI Bocchi Monitor — Parche v1.8
+# UNI Bocchi Monitor — PARCHE v1.9
 
-Este parche es acumulativo sobre v1.7 y actualiza la vista **Todos los cursos**.
+## Objetivo
+Corrige la vista **Todos los cursos** y cambia por completo la política de actualización.
 
-## Cambios
+### Comportamiento nuevo
+1. Al entrar a **Todos los cursos**, se hace **una sola carga inicial** de los cursos aperturados.
+2. La actualización automática siempre inicia **DESACTIVADA** cada vez que se entra a esta vista.
+3. Botón **Actualizar ahora**: fuerza una consulta manual de los cursos visibles según los filtros actuales.
+4. Botón **Auto desactivado / Auto · 10 min**: permite activar o desactivar la actualización automática.
+5. Cuando el Auto está activado, consulta cada **10 minutos**.
+6. Una actualización manual reinicia el plazo del Auto; así no se hacen dos consultas casi seguidas.
+7. Si sales de **Todos los cursos**, esta vista deja de programar nuevas consultas.
 
-- Filtro **Malla**.
-  - Sistemas: **Antigua 2018-II** y **Nueva 2026-II**.
-  - Industrial: **Antigua 2018** y **Nueva 2026**.
-  - Software: malla suministrada.
-  - Inteligencia Artificial: plan 2025-II suministrado.
-- Los ciclos y categorías se obtienen de las mallas suministradas.
-- El catálogo visible sigue saliendo **únicamente** de la Carga Horaria Oficial 2026-2; una malla nunca agrega un curso que no esté aperturado.
-- Actualización automática: **cada 5 minutos**.
-- Botón **Actualizar ahora**: fuerza la actualización manual de los cursos que estén visibles con los filtros actuales.
-- Se separan en el filtro: **Electivos** y **Complementarios / extracurriculares**.
-- La vista sigue sin vigilancia, recomendaciones, sonidos ni intentos de matrícula.
+## Corrección importante: falsos “Lleno”
+En v1.8, una sección todavía no consultada usaba `null` para matriculados/vacantes. JavaScript convierte `Number(null)` en `0`, por lo que podía verse algo como:
 
-## Aplicación
+- `0/32 matriculados`
+- `Lleno`
 
-1. Cierra el servidor local de Vite si está abierto.
-2. Haz una copia de seguridad de `C:\Proyectos\uni-bocchi-monitor`.
-3. Copia la carpeta `web` de este parche sobre `C:\Proyectos\uni-bocchi-monitor\web` y acepta reemplazar.
-4. Copia la carpeta `extension` sobre `C:\Proyectos\uni-bocchi-monitor\extension` y acepta reemplazar. La extensión no cambia funcionalmente respecto de v1.7, pero se incluye para que el parche sea acumulativo.
-5. En `brave://extensions/`, `chrome://extensions/`, `edge://extensions/` u `opera://extensions/`, pulsa **Recargar** en UNI Bocchi Bridge.
-6. Abre Matrícula UNI en `/cursos-disponibles` e inicia sesión.
-7. Ejecuta la web:
+sin que realmente existiera una consulta válida.
+
+v1.9 ya no interpreta `null` como cero. Mientras falta respuesta muestra:
+
+- `—/32`
+- `esperando consulta`
+- `Sin dato`
+
+Además, si la API devuelve una combinación incoherente, por ejemplo aforo 32 + matriculados 0 + libres 0, la vista calcula las libres como `32 - 0 = 32` para no mostrar un falso lleno.
+
+## Protección por límite de consultas UNI
+Si la UNI responde HTTP 429 o quedan muy pocas consultas:
+- el proceso hace una pausa corta;
+- conserva los datos ya obtenidos;
+- reintenta los cursos pendientes hasta 2 veces;
+- no borra datos anteriores por un fallo temporal.
+
+## Archivos a reemplazar
+Copiar el contenido de `web/` sobre la carpeta `web/` del proyecto:
+
+- `web/src/components/AllCoursesView.jsx`
+- `web/src/styles.css`
+
+No es necesario modificar ni recargar la extensión para este parche.
+
+## Instalación
+1. Cierra `npm run dev` si está ejecutándose.
+2. Haz una copia de seguridad de tu proyecto.
+3. Copia la carpeta `web` de este parche sobre:
+   `C:\Proyectos\uni-bocchi-monitor\web`
+4. Acepta **Reemplazar los archivos en el destino**.
+5. En VS Code:
 
 ```powershell
 cd C:\Proyectos\uni-bocchi-monitor\web
 npm run dev
 ```
 
-8. Haz `Ctrl + F5` y abre **Todos los cursos**.
+6. Abre la web local y usa `Ctrl + F5`.
 
 ## Prueba recomendada
+1. Entra a Monitor y confirma que no se consulta "Todos los cursos".
+2. Entra a **Todos los cursos**.
+3. Verifica que aparezcan los botones:
+   - `Actualizar ahora`
+   - `Auto desactivado`
+4. Deja terminar la carga inicial.
+5. Pulsa `Actualizar ahora`: debe consultar de nuevo inmediatamente.
+6. Pulsa `Auto desactivado`: debe cambiar a `Auto · 10 min`.
+7. Pulsa otra vez: debe volver a `Auto desactivado`.
+8. Sal de **Todos los cursos** y vuelve a entrar: Auto debe aparecer nuevamente desactivado.
+9. Busca una sección que antes mostraba `0/32` + `Lleno` sin datos. Ahora debe mostrar datos reales o `Sin dato`, nunca un falso lleno por `null`.
 
-- Carrera: Ingeniería de Sistemas.
-- Cambia entre `Malla antigua · 2018-II` y `Malla nueva · 2026-II`; deben cambiar los ciclos/cursos según la malla.
-- Haz la misma prueba en Ingeniería Industrial.
-- Pulsa **Actualizar ahora** y confirma que aparece el progreso.
-- Espera 5 minutos y comprueba que vuelve a ejecutarse la actualización automática.
-- Verifica que no aparezca ningún curso que no exista en el catálogo oficial 2026-2 incluido en `allCoursesCatalog.js`.
-
-## Git / Vercel
+## Publicar en Vercel
+Desde la raíz del proyecto:
 
 ```powershell
 cd C:\Proyectos\uni-bocchi-monitor
 git add .
-git commit -m "Todos los cursos: filtro de malla y refresco manual v1.8"
+git commit -m "Fix refresh controls and vacancy states v1.9"
 git push
 ```
 
-Si Vercel está conectado al repositorio, desplegará el commit automáticamente.
+Vercel desplegará el cambio si el repositorio continúa conectado.

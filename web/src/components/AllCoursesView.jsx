@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Clock3, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { BookOpen, Clock3, Pause, Play, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { getAllCourseVacancies } from '../lib/uniBridge'
 import { ALL_COURSES_CATALOG } from '../data/allCoursesCatalog'
 
 const CACHE_KEY = 'uni-bocchi-all-courses-cache-v1'
-const REFRESH_MS = 5 * 60 * 1000
+const AUTO_REFRESH_MS = 10 * 60 * 1000
 const BATCH_SIZE = 10
+const RATE_LIMIT_PAUSE_MS = 20 * 1000
+const LOW_RATE_PAUSE_MS = 12 * 1000
+const MAX_RATE_RETRIES = 2
 
 const CAREERS = [
   { id: 'all', label: 'Todas las carreras' },
@@ -58,6 +61,12 @@ function readCache() {
   } catch {
     return {}
   }
+}
+
+function finiteNumber(value) {
+  if (value === null || value === undefined || value === '') return Number.NaN
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : Number.NaN
 }
 
 function prettyProfessor(value = '') {
@@ -182,18 +191,27 @@ function mergeLiveSections(course, live) {
 }
 
 function VacancyBar({ section }) {
-  const max = Number(section?.vacantesMaximas)
-  const occupied = Number(section?.vacantesOcupadas)
-  const free = Number(section?.vacantesDisponibles)
+  const max = finiteNumber(section?.vacantesMaximas)
+  const occupied = finiteNumber(section?.vacantesOcupadas)
+  const reportedFree = finiteNumber(section?.vacantesDisponibles)
+
+  // La API UNI a veces devuelve 0/0 temporalmente para campos que todavía no
+  // están consistentes. Si tenemos aforo y matriculados, la resta es la fuente
+  // más coherente para no mostrar falsos “Lleno”.
+  const derivedFree = Number.isFinite(max) && Number.isFinite(occupied)
+    ? Math.max(0, max - occupied)
+    : Number.NaN
+  const free = Number.isFinite(derivedFree) ? derivedFree : reportedFree
   const hasLive = Number.isFinite(max) && Number.isFinite(occupied) && Number.isFinite(free)
   const pct = hasLive && max > 0 ? Math.min(100, Math.max(0, (occupied / max) * 100)) : 0
+  const isFull = hasLive && max > 0 && occupied >= max && free <= 0
 
   return (
     <div className="all-vacancy-side">
       <div className="all-vacancy-numbers">
         <strong>{hasLive ? `${occupied}/${max}` : `—/${Number.isFinite(max) ? max : '—'}`}</strong>
-        <span>{hasLive ? 'matriculados' : 'esperando datos'}</span>
-        <b className={hasLive && free <= 0 ? 'full' : ''}>{hasLive ? (free > 0 ? `${free} libres` : 'Lleno') : '—'}</b>
+        <span>{hasLive ? 'matriculados' : 'esperando consulta'}</span>
+        <b className={isFull ? 'full' : ''}>{hasLive ? (isFull ? 'Lleno' : `${free} libres`) : 'Sin dato'}</b>
       </div>
       <div className="all-vacancy-track"><span style={{ width: `${pct}%` }} /></div>
     </div>
@@ -202,6 +220,8 @@ function VacancyBar({ section }) {
 
 function AllCourseCard({ course, live, career, plan }) {
   const sections = mergeLiveSections(course, live)
+  const hasLiveData = Array.isArray(live?.secciones) && live.secciones.length > 0
+  const hasError = Boolean(live?.error)
 
   return (
     <article className="all-course-card">
@@ -210,7 +230,10 @@ function AllCourseCard({ course, live, career, plan }) {
           <span>{course.code}</span>
           <strong>{course.name}</strong>
         </div>
-        <div className="all-course-meta">{detailedMetaLabel(course, career, plan)}</div>
+        <div className="all-course-meta-wrap">
+          <div className="all-course-meta">{detailedMetaLabel(course, career, plan)}</div>
+          {!hasLiveData ? <span className={`all-live-state ${hasError ? 'warn' : ''}`}>{hasError ? 'Reintento pendiente' : 'Pendiente de consulta'}</span> : null}
+        </div>
       </div>
 
       <div className="all-course-sections">
@@ -243,14 +266,24 @@ export default function AllCoursesView({ bridge }) {
   const [cycle, setCycle] = useState('all')
   const [query, setQuery] = useState('')
   const [cache, setCache] = useState(() => readCache())
-  const [progress, setProgress] = useState({ running: false, done: 0, total: 0 })
-  const [message, setMessage] = useState('Los últimos datos guardados aparecen de inmediato.')
+  const [progress, setProgress] = useState({ running: false, done: 0, total: 0, reason: '' })
+  const [message, setMessage] = useState('Al abrir esta vista se hace una sola consulta inicial. El automático empieza desactivado.')
+  const [autoEnabled, setAutoEnabled] = useState(false)
+  const [autoCycle, setAutoCycle] = useState(0)
+  const [nextAutoAt, setNextAutoAt] = useState(null)
+
   const runningRef = useRef(false)
   const mountedRef = useRef(true)
+  const refreshGenerationRef = useRef(0)
+  const initialRefreshStartedRef = useRef(false)
 
-  useEffect(() => () => { mountedRef.current = false }, [])
+  useEffect(() => () => {
+    mountedRef.current = false
+    refreshGenerationRef.current += 1
+  }, [])
 
   const planOptions = PLAN_OPTIONS[career] || PLAN_OPTIONS.all
+  const allCodes = useMemo(() => ALL_COURSES_CATALOG.map((course) => course.code), [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('es-PE')
@@ -286,97 +319,143 @@ export default function AllCoursesView({ bridge }) {
 
   const refreshCodes = useMemo(() => filtered.map((course) => course.code), [filtered])
 
-  const runRefresh = useCallback(async (codes, force = false) => {
-    if (runningRef.current || bridge !== 'ready' || !codes?.length) return
+  const runRefresh = useCallback(async (codes, { reason = 'manual' } = {}) => {
+    if (runningRef.current || bridge !== 'ready' || !codes?.length) return false
 
-    const snapshot = readCache()
-    const now = Date.now()
-    const needed = [...new Set(codes)].filter((code) => {
-      if (force) return true
-      const stamp = new Date(snapshot?.[code]?.updatedAt || 0).getTime()
-      return !Number.isFinite(stamp) || now - stamp >= REFRESH_MS
-    })
+    const needed = [...new Set(codes.map((code) => String(code || '').trim().toUpperCase()).filter(Boolean))]
+    if (!needed.length) return false
 
-    if (!needed.length) {
-      setMessage('Datos recientes · actualización automática cada 5 min.')
-      return
-    }
-
+    const generation = refreshGenerationRef.current
     runningRef.current = true
+
     if (mountedRef.current) {
-      setProgress({ running: true, done: 0, total: needed.length })
-      setMessage(force ? `Actualización manual en curso · ${needed.length} curso(s).` : `Actualización automática en curso · ${needed.length} curso(s).`)
+      setProgress({ running: true, done: 0, total: needed.length, reason })
+      if (reason === 'initial') setMessage(`Carga inicial · consultando ${needed.length} curso(s) aperturados.`)
+      else if (reason === 'auto') setMessage(`Actualización automática · consultando ${needed.length} curso(s) visibles.`)
+      else setMessage(`Actualización manual · consultando ${needed.length} curso(s) visibles.`)
     }
 
-    let working = { ...snapshot }
-    let processed = 0
+    let working = { ...readCache() }
+    let queue = needed.map((code) => ({ code, retries: 0 }))
+    const finished = new Set()
 
     try {
-      for (let index = 0; index < needed.length; index += BATCH_SIZE) {
-        const batch = needed.slice(index, index + BATCH_SIZE)
-        const response = await getAllCourseVacancies(batch)
-        const returned = Array.isArray(response?.courses) ? response.courses : []
-        const returnedByCode = new Map(returned.map((item) => [item.codigo, item]))
-        const hitRateLimit = returned.some((item) => /HTTP_?429|DEFERRED_RATE_LIMIT/i.test(item?.error || ''))
+      while (queue.length) {
+        if (!mountedRef.current || generation !== refreshGenerationRef.current) return false
 
-        for (const code of batch) {
+        const batchEntries = queue.splice(0, BATCH_SIZE)
+        const batch = batchEntries.map((item) => item.code)
+        const response = await getAllCourseVacancies(batch)
+
+        if (!mountedRef.current || generation !== refreshGenerationRef.current) return false
+
+        const returned = Array.isArray(response?.courses) ? response.courses : []
+        const returnedByCode = new Map(returned.map((item) => [String(item?.codigo || '').toUpperCase(), item]))
+        const retryLater = []
+        let hitRateLimit = false
+
+        for (const entry of batchEntries) {
+          const code = entry.code
           const result = returnedByCode.get(code)
-          if (result?.secciones?.length) {
+          const errorCode = String(result?.error || '')
+          const rateLimited = /HTTP_?429|DEFERRED_RATE_LIMIT/i.test(errorCode)
+
+          if (Array.isArray(result?.secciones) && result.secciones.length > 0) {
             working[code] = {
               secciones: result.secciones,
               updatedAt: response?.updatedAt || new Date().toISOString(),
+              lastAttemptAt: new Date().toISOString(),
               error: '',
             }
-          } else if (!working[code]) {
-            working[code] = {
-              secciones: [],
-              updatedAt: response?.updatedAt || new Date().toISOString(),
-              error: result?.error || 'SIN_DATOS',
-            }
-          } else if (result?.error) {
-            working[code] = { ...working[code], error: result.error }
+            finished.add(code)
+            continue
           }
+
+          if (rateLimited) {
+            hitRateLimit = true
+            if (entry.retries < MAX_RATE_RETRIES) {
+              retryLater.push({ code, retries: entry.retries + 1 })
+              continue
+            }
+          }
+
+          const previous = working[code] || {}
+          working[code] = {
+            ...previous,
+            lastAttemptAt: new Date().toISOString(),
+            error: errorCode || 'SIN_DATOS_EN_RESPUESTA',
+          }
+          finished.add(code)
         }
 
-        processed += batch.length
+        queue.push(...retryLater)
         localStorage.setItem(CACHE_KEY, JSON.stringify(working))
+
         if (mountedRef.current) {
           setCache({ ...working })
-          setProgress({ running: true, done: processed, total: needed.length })
-          setMessage(`${force ? 'Actualización manual' : 'Sincronización automática'} ${processed}/${needed.length} · consultas escalonadas.`)
+          setProgress({ running: true, done: finished.size, total: needed.length, reason })
         }
 
-        if (hitRateLimit || (response?.rateRemaining !== null && Number(response?.rateRemaining) <= 5)) {
-          if (mountedRef.current) setMessage('Pausa preventiva por límite de consultas. Los datos guardados siguen visibles.')
-          break
+        if (hitRateLimit) {
+          if (mountedRef.current) setMessage(`La UNI limitó temporalmente las consultas. Pausa de ${Math.round(RATE_LIMIT_PAUSE_MS / 1000)} s y reintento automático de los pendientes.`)
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_PAUSE_MS))
+        } else if (response?.rateRemaining !== null && Number(response?.rateRemaining) <= 5 && queue.length) {
+          if (mountedRef.current) setMessage(`Quedan pocas consultas disponibles. Pausa corta para evitar HTTP 429 · ${finished.size}/${needed.length}.`)
+          await new Promise((resolve) => setTimeout(resolve, LOW_RATE_PAUSE_MS))
+        } else if (queue.length) {
+          if (mountedRef.current) setMessage(`${reason === 'initial' ? 'Carga inicial' : reason === 'auto' ? 'Automático' : 'Manual'} · ${finished.size}/${needed.length} curso(s) listos.`)
+          await new Promise((resolve) => setTimeout(resolve, 500))
         }
-
-        await new Promise((resolve) => setTimeout(resolve, 500))
       }
 
-      if (mountedRef.current) setMessage('Datos al día · próxima revisión automática en ~5 min.')
+      if (mountedRef.current) {
+        const suffix = autoEnabled ? ' Automático activo: próxima revisión en 10 min.' : ' Automático desactivado.'
+        setMessage(`Consulta terminada · ${finished.size}/${needed.length} curso(s).${suffix}`)
+      }
+      return true
     } catch (error) {
       if (mountedRef.current) {
         const code = error?.message || String(error)
-        setMessage(code.includes('SESSION_REQUIRED') ? 'Inicia sesión en Matrícula UNI para consultar vacantes.' : `No se pudo completar la sincronización: ${code}`)
+        setMessage(code.includes('SESSION_REQUIRED') ? 'Inicia sesión en Matrícula UNI para consultar vacantes.' : `No se pudo completar la consulta: ${code}`)
       }
+      return false
     } finally {
       runningRef.current = false
       if (mountedRef.current) setProgress((current) => ({ ...current, running: false }))
     }
-  }, [bridge])
+  }, [autoEnabled, bridge])
 
+  // ÚNICA consulta automática al entrar a “Todos los cursos”. Al salir de la vista
+  // el componente se desmonta y no se inicia ninguna consulta desde otras secciones.
   useEffect(() => {
-    runRefresh(refreshCodes)
-  }, [refreshCodes, runRefresh])
+    if (bridge !== 'ready' || initialRefreshStartedRef.current) return
+    initialRefreshStartedRef.current = true
+    runRefresh(allCodes, { reason: 'initial' })
+  }, [allCodes, bridge, runRefresh])
 
+  // El automático SIEMPRE nace apagado. Solo se programa después de que el usuario
+  // lo habilita explícitamente, y la primera ejecución ocurre 10 minutos después.
   useEffect(() => {
-    const timer = window.setInterval(() => runRefresh(refreshCodes), REFRESH_MS)
-    return () => window.clearInterval(timer)
-  }, [refreshCodes, runRefresh])
+    if (!autoEnabled || bridge !== 'ready') {
+      setNextAutoAt(null)
+      return undefined
+    }
+
+    const target = Date.now() + AUTO_REFRESH_MS
+    setNextAutoAt(target)
+
+    const timer = window.setTimeout(async () => {
+      await runRefresh(refreshCodes, { reason: 'auto' })
+      if (mountedRef.current) setAutoCycle((value) => value + 1)
+    }, AUTO_REFRESH_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [autoCycle, autoEnabled, bridge, refreshCodes, runRefresh])
 
   const latest = useMemo(() => {
-    const stamps = Object.values(cache || {}).map((item) => new Date(item?.updatedAt || 0).getTime()).filter(Number.isFinite)
+    const stamps = Object.values(cache || {})
+      .map((item) => new Date(item?.updatedAt || 0).getTime())
+      .filter((value) => Number.isFinite(value) && value > 0)
     if (!stamps.length) return 'Sin datos aún'
     return new Date(Math.max(...stamps)).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
   }, [cache])
@@ -388,17 +467,36 @@ export default function AllCoursesView({ bridge }) {
     setCycle('all')
   }
 
+  async function manualRefresh() {
+    const completed = await runRefresh(refreshCodes, { reason: 'manual' })
+    if (completed && autoEnabled && mountedRef.current) setAutoCycle((value) => value + 1)
+  }
+
+  function toggleAuto() {
+    setAutoEnabled((current) => {
+      const next = !current
+      setMessage(next
+        ? 'Automático activado. La próxima consulta será en 10 minutos; puedes usar “Actualizar ahora” cuando quieras.'
+        : 'Automático desactivado. No habrá más consultas periódicas en esta vista.')
+      return next
+    })
+  }
+
+  const nextAutoLabel = autoEnabled && nextAutoAt
+    ? `Próxima automática aprox. ${new Date(nextAutoAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`
+    : 'Sin actualización periódica'
+
   return (
     <section className="all-courses-view">
       <div className="all-courses-intro">
         <div>
           <div className="all-courses-kicker"><BookOpen size={15}/> TODOS LOS CURSOS APERTURADOS</div>
           <h2>Vacantes FIIS 2026-2</h2>
-          <p>Solo aparecen cursos presentes en la Carga Horaria Oficial 2026-2. Las mallas se usan únicamente para ordenar y filtrar por carrera, plan y ciclo.</p>
+          <p>Solo aparecen cursos presentes en la Carga Horaria Oficial 2026-2. Esta vista consulta vacantes únicamente mientras está abierta.</p>
         </div>
         <div className="all-courses-refresh-note">
           <Clock3 size={15}/>
-          <div><strong>Automática · cada 5 min</strong><span>{message}</span></div>
+          <div><strong>{autoEnabled ? 'Automático activo · cada 10 min' : 'Automático desactivado'}</strong><span>{nextAutoLabel}</span></div>
         </div>
       </div>
 
@@ -407,6 +505,35 @@ export default function AllCoursesView({ bridge }) {
         <div><span>Mostrando</span><strong>{filtered.length}</strong></div>
         <div><span>Último dato</span><strong>{latest}</strong></div>
         <div><span>Sesión</span><strong className={bridge === 'ready' ? 'ok' : ''}><ShieldCheck size={13}/>{bridge === 'ready' ? 'Puente listo' : 'Revisar puente'}</strong></div>
+      </div>
+
+      <div className="all-refresh-toolbar">
+        <div className="all-refresh-status">
+          <span className={progress.running ? 'busy' : ''}>{progress.running ? `${progress.done}/${progress.total}` : 'Listo'}</span>
+          <p>{message}</p>
+        </div>
+        <div className="all-refresh-actions">
+          <button
+            type="button"
+            className="btn btn-primary all-manual-refresh"
+            onClick={manualRefresh}
+            disabled={progress.running || bridge !== 'ready' || !refreshCodes.length}
+            title="Consulta de nuevo, ahora mismo, los cursos visibles con los filtros actuales."
+          >
+            <RefreshCw size={15} className={progress.running ? 'spin' : ''}/>
+            {progress.running ? 'Consultando…' : 'Actualizar ahora'}
+          </button>
+          <button
+            type="button"
+            className={`btn all-auto-refresh ${autoEnabled ? 'active' : ''}`}
+            onClick={toggleAuto}
+            disabled={bridge !== 'ready'}
+            title="Activa o desactiva una consulta automática cada 10 minutos. Siempre inicia desactivada al abrir esta vista."
+          >
+            {autoEnabled ? <Pause size={15}/> : <Play size={15}/>}
+            {autoEnabled ? 'Auto · 10 min' : 'Auto desactivado'}
+          </button>
+        </div>
       </div>
 
       <div className="all-courses-filters">
@@ -423,16 +550,6 @@ export default function AllCoursesView({ bridge }) {
           <option value="elective">Electivos</option>
           <option value="complementary">Complementarios / extracurriculares</option>
         </select>
-        <button
-          type="button"
-          className="btn btn-primary all-manual-refresh"
-          onClick={() => runRefresh(refreshCodes, true)}
-          disabled={progress.running || bridge !== 'ready' || !refreshCodes.length}
-          title="Actualiza manualmente solo los cursos que están visibles con los filtros actuales."
-        >
-          <RefreshCw size={15} className={progress.running ? 'spin' : ''}/>
-          {progress.running ? 'Actualizando…' : 'Actualizar ahora'}
-        </button>
       </div>
 
       {progress.running ? (
@@ -453,7 +570,7 @@ export default function AllCoursesView({ bridge }) {
       </div>
 
       <div className="all-courses-footnote">
-        “Todos los cursos” no vigila, no recomienda y no intenta matricular. La actualización automática es cada 5 minutos; el botón “Actualizar ahora” fuerza una consulta manual de los cursos visibles.
+        “Todos los cursos” no vigila, no recomienda y no intenta matricular. Al entrar hace una carga inicial; después no vuelve a consultar por sí sola salvo que actives “Auto · 10 min”. “Actualizar ahora” siempre fuerza una consulta manual de los cursos visibles.
       </div>
     </section>
   )

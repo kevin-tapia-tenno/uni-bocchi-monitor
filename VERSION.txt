@@ -1,1 +1,2 @@
-UNI Bocchi Monitor — Todos los cursos v1.8
+UNI Bocchi Monitor — Todos los cursos — PARCHE v1.9
+Actualización manual + Auto 10 min opt-in + fix falso Lleno

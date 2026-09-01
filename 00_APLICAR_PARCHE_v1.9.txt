@@ -1,0 +1,7 @@
+1) Copia la carpeta web de este parche sobre C:\Proyectos\uni-bocchi-monitor\web
+2) Acepta reemplazar archivos.
+3) NO necesitas reemplazar la extensión en v1.9.
+4) Ejecuta: cd C:\Proyectos\uni-bocchi-monitor\web ; npm run dev
+5) Ctrl+F5.
+6) En Todos los cursos verifica: Actualizar ahora + Auto desactivado.
+7) Auto debe reiniciarse en DESACTIVADO cada vez que vuelvas a entrar a la vista.
