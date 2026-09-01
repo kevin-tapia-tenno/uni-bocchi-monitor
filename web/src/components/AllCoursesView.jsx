@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Clock3, Search, ShieldCheck } from 'lucide-react'
+import { BookOpen, Clock3, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { getAllCourseVacancies } from '../lib/uniBridge'
 import { ALL_COURSES_CATALOG } from '../data/allCoursesCatalog'
 
@@ -22,6 +22,28 @@ const CAREER_LABEL = {
   systems: 'Ingeniería de Sistemas',
   software: 'Ingeniería de Software',
   ai: 'Inteligencia Artificial',
+}
+
+const PLAN_OPTIONS = {
+  all: [{ id: 'all', label: 'Todas las mallas' }],
+  systems: [
+    { id: 'all', label: 'Todas las mallas' },
+    { id: 'old', label: 'Malla antigua · 2018-II' },
+    { id: 'new', label: 'Malla nueva · 2026-II' },
+  ],
+  industrial: [
+    { id: 'all', label: 'Todas las mallas' },
+    { id: 'old', label: 'Malla antigua · 2018' },
+    { id: 'new', label: 'Malla nueva · 2026' },
+  ],
+  software: [{ id: 'current', label: 'Malla de Ingeniería de Software' }],
+  ai: [{ id: 'current', label: 'Malla de Inteligencia Artificial · 2025-II' }],
+}
+
+const PLAN_SHORT_LABEL = {
+  old: 'antigua',
+  new: 'nueva',
+  current: 'vigente',
 }
 
 const DAY_LABEL = {
@@ -64,31 +86,78 @@ function liveProfessor(section, fallback) {
   return prettyProfessor(fromLive || fallback?.professor || '')
 }
 
-function courseMeta(course, career) {
-  if (career !== 'all') return course.careerMeta?.[career] || null
-  const values = Object.values(course.careerMeta || {})
-  const core = values.filter((item) => item?.category === 'core' && Number.isFinite(item?.cycle))
-  if (core.length) return { category: 'core', cycle: Math.min(...core.map((item) => item.cycle)) }
-  if (values.some((item) => item?.category === 'complementary')) return { category: 'complementary', cycle: null }
-  if (values.length) return { category: 'elective', cycle: null }
-  return null
+function careerPlanEntries(course, career, plan = 'all') {
+  if (!career || career === 'all') {
+    return Object.entries(course.curricula || {}).flatMap(([careerId, plans]) =>
+      Object.entries(plans || {}).map(([planId, meta]) => ({ career: careerId, plan: planId, ...meta })),
+    )
+  }
+
+  const plans = course.curricula?.[career] || {}
+  if (plan === 'all') return Object.entries(plans).map(([planId, meta]) => ({ career, plan: planId, ...meta }))
+  const meta = plans?.[plan]
+  return meta ? [{ career, plan, ...meta }] : []
 }
 
 function courseMatchesCareer(course, career) {
-  return career === 'all' || Boolean(course.careerMeta?.[career])
+  if (career === 'all') return true
+  return Boolean(course.curricula?.[career]) || course.primaryCareer === career
 }
 
-function cycleLabel(meta) {
-  if (!meta || meta.category !== 'core' || !meta.cycle) return 'Electivo / complementario'
-  return `Ciclo ${meta.cycle}`
+function courseMatchesPlan(course, career, plan) {
+  if (career === 'all') return true
+  if (plan === 'all') return courseMatchesCareer(course, career)
+  return Boolean(course.curricula?.[career]?.[plan])
 }
 
-function entrySort(a, b, career) {
-  const ma = courseMeta(a, career)
-  const mb = courseMeta(b, career)
-  const ca = ma?.category === 'core' ? (ma.cycle || 99) : 99
-  const cb = mb?.category === 'core' ? (mb.cycle || 99) : 99
-  return ca - cb || a.code.localeCompare(b.code, 'es')
+function courseMatchesCycle(course, career, plan, cycle) {
+  if (cycle === 'all') return true
+  const entries = careerPlanEntries(course, career, plan)
+
+  if (cycle === 'elective') return entries.some((item) => item.category === 'elective')
+  if (cycle === 'complementary') return entries.some((item) => item.category === 'complementary')
+  return entries.some((item) => item.category === 'core' && Number(item.cycle) === Number(cycle))
+}
+
+function primaryMeta(course, career, plan) {
+  const entries = careerPlanEntries(course, career, plan)
+  const core = entries.filter((item) => item.category === 'core' && Number.isFinite(Number(item.cycle)))
+  if (core.length) return core.sort((a, b) => Number(a.cycle) - Number(b.cycle))[0]
+  if (entries.some((item) => item.category === 'elective')) return { category: 'elective', cycle: null }
+  if (entries.some((item) => item.category === 'complementary')) return { category: 'complementary', cycle: null }
+  return null
+}
+
+function categoryLabel(meta) {
+  if (!meta) return 'Aperturado · sin coincidencia en la malla elegida'
+  if (meta.category === 'core' && meta.cycle) return `Ciclo ${meta.cycle}`
+  if (meta.category === 'elective') return 'Electivos'
+  if (meta.category === 'complementary') return 'Complementarios / extracurriculares'
+  return 'Otros'
+}
+
+function detailedMetaLabel(course, career, plan) {
+  if (career === 'all') return categoryLabel(primaryMeta(course, career, plan))
+  const entries = careerPlanEntries(course, career, plan)
+  if (!entries.length) return 'Aperturado · sin coincidencia en la malla suministrada'
+
+  if (plan !== 'all' || entries.length === 1) return categoryLabel(entries[0])
+
+  return entries
+    .map((item) => `${PLAN_SHORT_LABEL[item.plan] || item.plan}: ${categoryLabel(item).replace(/^Ciclo /, 'ciclo ')}`)
+    .join(' · ')
+}
+
+function entrySort(a, b, career, plan) {
+  const ma = primaryMeta(a, career, plan)
+  const mb = primaryMeta(b, career, plan)
+  const rank = (meta) => {
+    if (meta?.category === 'core') return Number(meta.cycle || 90)
+    if (meta?.category === 'elective') return 91
+    if (meta?.category === 'complementary') return 92
+    return 99
+  }
+  return rank(ma) - rank(mb) || a.code.localeCompare(b.code, 'es')
 }
 
 function mergeLiveSections(course, live) {
@@ -131,8 +200,7 @@ function VacancyBar({ section }) {
   )
 }
 
-function AllCourseCard({ course, live, career }) {
-  const meta = courseMeta(course, career)
+function AllCourseCard({ course, live, career, plan }) {
   const sections = mergeLiveSections(course, live)
 
   return (
@@ -142,7 +210,7 @@ function AllCourseCard({ course, live, career }) {
           <span>{course.code}</span>
           <strong>{course.name}</strong>
         </div>
-        <div className="all-course-meta">{cycleLabel(meta)}</div>
+        <div className="all-course-meta">{detailedMetaLabel(course, career, plan)}</div>
       </div>
 
       <div className="all-course-sections">
@@ -171,6 +239,7 @@ function AllCourseCard({ course, live, career }) {
 
 export default function AllCoursesView({ bridge }) {
   const [career, setCareer] = useState('all')
+  const [plan, setPlan] = useState('all')
   const [cycle, setCycle] = useState('all')
   const [query, setQuery] = useState('')
   const [cache, setCache] = useState(() => readCache())
@@ -181,34 +250,27 @@ export default function AllCoursesView({ bridge }) {
 
   useEffect(() => () => { mountedRef.current = false }, [])
 
+  const planOptions = PLAN_OPTIONS[career] || PLAN_OPTIONS.all
+
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('es-PE')
     return ALL_COURSES_CATALOG
       .filter((course) => courseMatchesCareer(course, career))
-      .filter((course) => {
-        const meta = courseMeta(course, career)
-        if (cycle === 'all') return true
-        if (career === 'all') {
-          const metas = Object.values(course.careerMeta || {})
-          if (cycle === 'elective') return metas.some((item) => item?.category !== 'core')
-          return metas.some((item) => item?.category === 'core' && Number(item?.cycle) === Number(cycle))
-        }
-        if (cycle === 'elective') return meta?.category !== 'core'
-        return meta?.category === 'core' && Number(meta?.cycle) === Number(cycle)
-      })
+      .filter((course) => courseMatchesPlan(course, career, plan))
+      .filter((course) => courseMatchesCycle(course, career, plan, cycle))
       .filter((course) => {
         if (!q) return true
         const professors = (course.fallbackSections || []).map((s) => s.professor || '').join(' ')
         return `${course.code} ${course.name} ${professors}`.toLocaleLowerCase('es-PE').includes(q)
       })
-      .sort((a, b) => entrySort(a, b, career))
-  }, [career, cycle, query])
+      .sort((a, b) => entrySort(a, b, career, plan))
+  }, [career, plan, cycle, query])
 
   const groups = useMemo(() => {
     if (career !== 'all') {
       const grouped = new Map()
       for (const course of filtered) {
-        const key = cycleLabel(courseMeta(course, career))
+        const key = categoryLabel(primaryMeta(course, career, plan))
         if (!grouped.has(key)) grouped.set(key, [])
         grouped.get(key).push(course)
       }
@@ -220,7 +282,7 @@ export default function AllCoursesView({ bridge }) {
       label: CAREER_LABEL[key],
       courses: filtered.filter((course) => course.primaryCareer === key),
     })).filter((group) => group.courses.length)
-  }, [career, filtered])
+  }, [career, plan, filtered])
 
   const refreshCodes = useMemo(() => filtered.map((course) => course.code), [filtered])
 
@@ -241,7 +303,11 @@ export default function AllCoursesView({ bridge }) {
     }
 
     runningRef.current = true
-    if (mountedRef.current) setProgress({ running: true, done: 0, total: needed.length })
+    if (mountedRef.current) {
+      setProgress({ running: true, done: 0, total: needed.length })
+      setMessage(force ? `Actualización manual en curso · ${needed.length} curso(s).` : `Actualización automática en curso · ${needed.length} curso(s).`)
+    }
+
     let working = { ...snapshot }
     let processed = 0
 
@@ -277,7 +343,7 @@ export default function AllCoursesView({ bridge }) {
         if (mountedRef.current) {
           setCache({ ...working })
           setProgress({ running: true, done: processed, total: needed.length })
-          setMessage(`Sincronización escalonada ${processed}/${needed.length} · sin saturar la UNI.`)
+          setMessage(`${force ? 'Actualización manual' : 'Sincronización automática'} ${processed}/${needed.length} · consultas escalonadas.`)
         }
 
         if (hitRateLimit || (response?.rateRemaining !== null && Number(response?.rateRemaining) <= 5)) {
@@ -315,22 +381,29 @@ export default function AllCoursesView({ bridge }) {
     return new Date(Math.max(...stamps)).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
   }, [cache])
 
+  function changeCareer(nextCareer) {
+    const nextOptions = PLAN_OPTIONS[nextCareer] || PLAN_OPTIONS.all
+    setCareer(nextCareer)
+    setPlan(nextOptions.some((item) => item.id === 'all') ? 'all' : nextOptions[0].id)
+    setCycle('all')
+  }
+
   return (
     <section className="all-courses-view">
       <div className="all-courses-intro">
         <div>
           <div className="all-courses-kicker"><BookOpen size={15}/> TODOS LOS CURSOS APERTURADOS</div>
           <h2>Vacantes FIIS 2026-2</h2>
-          <p>Vista simple por carrera y ciclo. Se consulta únicamente la lista oficial de cursos aperturados y se reutiliza la caché local.</p>
+          <p>Solo aparecen cursos presentes en la Carga Horaria Oficial 2026-2. Las mallas se usan únicamente para ordenar y filtrar por carrera, plan y ciclo.</p>
         </div>
         <div className="all-courses-refresh-note">
           <Clock3 size={15}/>
-          <div><strong>Actualización suave · 5 min</strong><span>{message}</span></div>
+          <div><strong>Automática · cada 5 min</strong><span>{message}</span></div>
         </div>
       </div>
 
       <div className="all-courses-stats">
-        <div><span>Catálogo oficial</span><strong>{ALL_COURSES_CATALOG.length} cursos</strong></div>
+        <div><span>Aperturados en carga</span><strong>{ALL_COURSES_CATALOG.length} cursos</strong></div>
         <div><span>Mostrando</span><strong>{filtered.length}</strong></div>
         <div><span>Último dato</span><strong>{latest}</strong></div>
         <div><span>Sesión</span><strong className={bridge === 'ready' ? 'ok' : ''}><ShieldCheck size={13}/>{bridge === 'ready' ? 'Puente listo' : 'Revisar puente'}</strong></div>
@@ -338,14 +411,28 @@ export default function AllCoursesView({ bridge }) {
 
       <div className="all-courses-filters">
         <label className="search-box all-search"><Search size={17}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar código, curso o profesor…"/></label>
-        <select value={career} onChange={(e) => { setCareer(e.target.value); setCycle('all') }}>
+        <select value={career} onChange={(e) => changeCareer(e.target.value)}>
           {CAREERS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
+        </select>
+        <select value={plan} onChange={(e) => { setPlan(e.target.value); setCycle('all') }}>
+          {planOptions.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
         </select>
         <select value={cycle} onChange={(e) => setCycle(e.target.value)}>
           <option value="all">Todos los ciclos</option>
           {Array.from({ length: 10 }, (_, index) => <option value={String(index + 1)} key={index + 1}>Ciclo {index + 1}</option>)}
-          <option value="elective">Electivos / complementarios</option>
+          <option value="elective">Electivos</option>
+          <option value="complementary">Complementarios / extracurriculares</option>
         </select>
+        <button
+          type="button"
+          className="btn btn-primary all-manual-refresh"
+          onClick={() => runRefresh(refreshCodes, true)}
+          disabled={progress.running || bridge !== 'ready' || !refreshCodes.length}
+          title="Actualiza manualmente solo los cursos que están visibles con los filtros actuales."
+        >
+          <RefreshCw size={15} className={progress.running ? 'spin' : ''}/>
+          {progress.running ? 'Actualizando…' : 'Actualizar ahora'}
+        </button>
       </div>
 
       {progress.running ? (
@@ -357,16 +444,16 @@ export default function AllCoursesView({ bridge }) {
           <section className="all-career-group" key={group.key}>
             <div className="all-group-heading"><h3>{group.label}</h3><span>{group.courses.length}</span></div>
             <div className="all-group-courses">
-              {group.courses.map((course) => <AllCourseCard course={course} live={cache?.[course.code]} career={career} key={`${group.key}-${course.code}`} />)}
+              {group.courses.map((course) => <AllCourseCard course={course} live={cache?.[course.code]} career={career} plan={plan} key={`${group.key}-${course.code}`} />)}
             </div>
           </section>
         )) : (
-          <div className="all-courses-empty"><BookOpen size={26}/><strong>No hay cursos con estos filtros.</strong><span>Prueba con otra carrera, ciclo o búsqueda.</span></div>
+          <div className="all-courses-empty"><BookOpen size={26}/><strong>No hay cursos aperturados con estos filtros.</strong><span>Prueba con otra carrera, malla, ciclo o búsqueda.</span></div>
         )}
       </div>
 
       <div className="all-courses-footnote">
-        La vista “Todos los cursos” no vigila, no recomienda y no intenta matricular. Solo consulta vacantes mientras esta pestaña esté abierta.
+        “Todos los cursos” no vigila, no recomienda y no intenta matricular. La actualización automática es cada 5 minutos; el botón “Actualizar ahora” fuerza una consulta manual de los cursos visibles.
       </div>
     </section>
   )

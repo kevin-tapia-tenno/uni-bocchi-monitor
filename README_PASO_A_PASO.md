@@ -1,122 +1,54 @@
-# UNI Bocchi Monitor v1.7 — Todos los cursos
+# UNI Bocchi Monitor — Parche v1.8
 
-## 1. Haz una copia de seguridad
-Copia tu carpeta actual:
+Este parche es acumulativo sobre v1.7 y actualiza la vista **Todos los cursos**.
 
-`C:\Proyectos\uni-bocchi-monitor`
+## Cambios
 
-y guárdala, por ejemplo, como:
+- Filtro **Malla**.
+  - Sistemas: **Antigua 2018-II** y **Nueva 2026-II**.
+  - Industrial: **Antigua 2018** y **Nueva 2026**.
+  - Software: malla suministrada.
+  - Inteligencia Artificial: plan 2025-II suministrado.
+- Los ciclos y categorías se obtienen de las mallas suministradas.
+- El catálogo visible sigue saliendo **únicamente** de la Carga Horaria Oficial 2026-2; una malla nunca agrega un curso que no esté aperturado.
+- Actualización automática: **cada 5 minutos**.
+- Botón **Actualizar ahora**: fuerza la actualización manual de los cursos que estén visibles con los filtros actuales.
+- Se separan en el filtro: **Electivos** y **Complementarios / extracurriculares**.
+- La vista sigue sin vigilancia, recomendaciones, sonidos ni intentos de matrícula.
 
-`C:\Proyectos\uni-bocchi-monitor-backup-v1.6.4`
+## Aplicación
 
-## 2. Descomprime el ZIP
-Dentro encontrarás dos carpetas: `web` y `extension`.
-
-## 3. Actualiza la web
-Copia el contenido de la carpeta `web` del parche sobre:
-
-`C:\Proyectos\uni-bocchi-monitor\web`
-
-Windows preguntará si deseas reemplazar archivos. Elige **Reemplazar los archivos en el destino**.
-
-Se añaden dos archivos nuevos:
-- `web\src\components\AllCoursesView.jsx`
-- `web\src\data\allCoursesCatalog.js`
-
-Y se reemplazan:
-- `web\src\App.jsx`
-- `web\src\styles.css`
-- `web\src\lib\uniBridge.js`
-
-No borres `web\public\assets`.
-
-## 4. Actualiza UNI Bocchi Bridge
-Copia los cuatro archivos de `extension` del parche sobre:
-
-`C:\Proyectos\uni-bocchi-monitor\extension`
-
-Reemplaza:
-- `background.js`
-- `uni-content.js`
-- `web-bridge.js`
-- `manifest.json`
-
-No borres la carpeta `extension\icons`.
-
-## 5. Recarga la extensión
-### Brave
-Abre `brave://extensions/`
-
-### Chrome
-Abre `chrome://extensions/`
-
-### Edge
-Abre `edge://extensions/`
-
-### Opera / Opera GX
-Abre `opera://extensions/`
-
-Busca **UNI Bocchi Bridge** y pulsa **Recargar**. La versión del manifiesto debe indicar `1.2.0`.
-
-## 6. Recarga Matrícula UNI
-Si tienes una pestaña de Matrícula UNI abierta, pulsa `Ctrl + F5`.
-
-Mantén tu sesión iniciada normalmente. No copies tokens ni credenciales al monitor.
-
-## 7. Prueba localmente
-En VS Code abre una terminal y ejecuta:
+1. Cierra el servidor local de Vite si está abierto.
+2. Haz una copia de seguridad de `C:\Proyectos\uni-bocchi-monitor`.
+3. Copia la carpeta `web` de este parche sobre `C:\Proyectos\uni-bocchi-monitor\web` y acepta reemplazar.
+4. Copia la carpeta `extension` sobre `C:\Proyectos\uni-bocchi-monitor\extension` y acepta reemplazar. La extensión no cambia funcionalmente respecto de v1.7, pero se incluye para que el parche sea acumulativo.
+5. En `brave://extensions/`, `chrome://extensions/`, `edge://extensions/` u `opera://extensions/`, pulsa **Recargar** en UNI Bocchi Bridge.
+6. Abre Matrícula UNI en `/cursos-disponibles` e inicia sesión.
+7. Ejecuta la web:
 
 ```powershell
 cd C:\Proyectos\uni-bocchi-monitor\web
 npm run dev
 ```
 
-Abre la dirección que muestre Vite, normalmente `http://localhost:5173/`.
+8. Haz `Ctrl + F5` y abre **Todos los cursos**.
 
-Pulsa `Ctrl + F5`.
+## Prueba recomendada
 
-En el menú lateral debe aparecer:
+- Carrera: Ingeniería de Sistemas.
+- Cambia entre `Malla antigua · 2018-II` y `Malla nueva · 2026-II`; deben cambiar los ciclos/cursos según la malla.
+- Haz la misma prueba en Ingeniería Industrial.
+- Pulsa **Actualizar ahora** y confirma que aparece el progreso.
+- Espera 5 minutos y comprueba que vuelve a ejecutarse la actualización automática.
+- Verifica que no aparezca ningún curso que no exista en el catálogo oficial 2026-2 incluido en `allCoursesCatalog.js`.
 
-**Todos los cursos**
-
-## 8. Qué esperar la primera vez
-La lista de cursos aparece inmediatamente usando el catálogo oficial. Las vacantes se van completando de manera escalonada.
-
-No se consultan los ~139 cursos al mismo tiempo. La extensión procesa pequeños lotes y guarda cada resultado en el navegador.
-
-La primera carga completa puede tardar unos minutos. Después, los valores guardados aparecen instantáneamente incluso al hacer F5, y solo se renuevan cuando tienen aproximadamente 5 minutos de antigüedad.
-
-## 9. Filtros
-En **Todos los cursos** puedes seleccionar:
-- carrera;
-- ciclo 1–10;
-- Electivos / complementarios;
-- búsqueda por código, nombre o profesor.
-
-Si eliges una carrera concreta, los ciclos se ordenan según la clasificación curricular de esa carrera.
-
-## 10. Protección contra saturación
-La vista usa:
-- caché por curso de 5 minutos;
-- lotes de 10 códigos;
-- espera aproximada de 1.35 segundos entre consultas;
-- pausa automática ante `HTTP 429`;
-- un único tab trabajador de Matrícula UNI;
-- pausa del auto-refresco del monitor personal mientras estás en “Todos los cursos”.
-
-## 11. Sube a GitHub / Vercel
-Cuando la prueba local esté correcta:
+## Git / Vercel
 
 ```powershell
 cd C:\Proyectos\uni-bocchi-monitor
 git add .
-git commit -m "Agregar vista de todos los cursos FIIS"
+git commit -m "Todos los cursos: filtro de malla y refresco manual v1.8"
 git push
 ```
 
-Si Vercel ya está conectado a ese repositorio, se desplegará automáticamente. No tienes que crear otro proyecto.
-
-## 12. Si algún curso aparece sin datos
-El catálogo seguirá mostrando curso, sección, profesor y horario de la carga oficial. La zona de vacantes mostrará `—` hasta que la API responda.
-
-Si la UNI limita temporalmente consultas, el monitor conserva el último dato válido y vuelve a intentarlo después.
+Si Vercel está conectado al repositorio, desplegará el commit automáticamente.

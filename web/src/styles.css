@@ -1117,8 +1117,12 @@ body::before {
 .all-courses-stats span { display: block; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: 8.5px; }
 .all-courses-stats strong { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: var(--soft); font-size: 11px; }
 .all-courses-stats strong.ok { color: var(--good); }
-.all-courses-filters { display: grid; grid-template-columns: minmax(280px,1fr) 220px 190px; gap: 8px; margin-bottom: 8px; }
-.all-courses-filters select { height: 40px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; outline: 0; color: var(--soft); background: var(--surface); }
+.all-courses-filters { display: grid; grid-template-columns: minmax(260px,1fr) 190px 210px 190px auto; gap: 8px; margin-bottom: 8px; }
+.all-courses-filters select { min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; outline: 0; color: var(--soft); background: var(--surface); }
+.all-manual-refresh { min-height: 40px; height: 40px; white-space: nowrap; justify-content: center; }
+.all-manual-refresh:disabled { opacity: .48; cursor: not-allowed; }
+.all-manual-refresh .spin { animation: all-refresh-spin .8s linear infinite; }
+@keyframes all-refresh-spin { to { transform: rotate(360deg); } }
 .all-search { height: 40px; }
 .all-sync-progress { overflow: hidden; height: 3px; margin: 2px 1px 12px; border-radius: 999px; background: rgba(255,255,255,.04); }
 .all-sync-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--pink)); transition: width .25s ease; }
@@ -1160,6 +1164,7 @@ body::before {
   .all-courses-stats { grid-template-columns: repeat(2,1fr); }
   .all-courses-filters { grid-template-columns: 1fr 1fr; }
   .all-search { grid-column: 1 / -1; }
+  .all-manual-refresh { width: 100%; }
   .all-section-row { grid-template-columns: 1fr; gap: 8px; }
 }
 

@@ -1,0 +1,7 @@
+Catalog courses: 139
+systems:old: 74 aperturados coinciden con esa malla
+systems:new: 51 aperturados coinciden con esa malla
+industrial:old: 66 aperturados coinciden con esa malla
+industrial:new: 67 aperturados coinciden con esa malla
+software:current: 48 aperturados coinciden con esa malla
+ai:current: 34 aperturados coinciden con esa malla

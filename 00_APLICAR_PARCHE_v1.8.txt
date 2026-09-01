@@ -1,0 +1,17 @@
+PARCHE v1.8 — TODOS LOS CURSOS
+
+1) COPIAR web\ SOBRE TU CARPETA web\ Y REEMPLAZAR.
+2) COPIAR extension\ SOBRE TU CARPETA extension\ Y REEMPLAZAR.
+3) RECARGAR UNI BOCCHI BRIDGE EN LA PÁGINA DE EXTENSIONES.
+4) CTRL+F5 EN LA WEB.
+
+CAMBIOS PRINCIPALES:
+- Filtro de malla antigua/nueva para Sistemas e Industrial.
+- Mallas de Software e IA incorporadas para clasificación.
+- Automático cada 5 minutos.
+- Botón Actualizar ahora.
+- El botón manual actualiza únicamente los cursos visibles según los filtros.
+- SOLO se muestran cursos presentes en la Carga Horaria Oficial 2026-2.
+- Las mallas NO agregan cursos cerrados/no aperturados.
+
+Lee README_PASO_A_PASO.md para validar.
