@@ -46,3 +46,7 @@ export async function openUni() {
 export async function openEnrollment() {
   return request('OPEN_UNI', { path: '/matricula' }, 5000)
 }
+
+export async function getAllCourseVacancies(codes) {
+  return request('ALL_COURSES', { codes }, 90000)
+}

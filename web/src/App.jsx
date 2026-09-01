@@ -10,6 +10,7 @@ import {
   Clock3,
   ExternalLink,
   ListChecks,
+  LibraryBig,
   Pause,
   Play,
   Search,
@@ -22,6 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import CourseCard from './components/CourseCard'
+import AllCoursesView from './components/AllCoursesView'
 import { getEnrollmentTurn, openEnrollment, openUni, pingBridge, syncUni } from './lib/uniBridge'
 import { playEffect, playRandomUiSound, setBgm, setBgmVolume } from './lib/audio'
 import { bocchiTip, minFree, randomRecommendationTarget, safeRefreshSeconds, totalFree } from './lib/vacancy'
@@ -193,6 +195,7 @@ function App() {
   const [turnError, setTurnError] = useState('')
   const [turnLoading, setTurnLoading] = useState(false)
   const [nowMs, setNowMs] = useState(Date.now())
+  const [activeView, setActiveView] = useState('monitor')
 
   const timerRef = useRef(null)
   const syncingRef = useRef(false)
@@ -245,13 +248,13 @@ function App() {
 
   const scheduleNext = useCallback((seconds) => {
     clearTimer()
-    if (!auto) return
+    if (!auto || activeView !== 'monitor') return
 
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null
       syncFnRef.current?.(false)
     }, Math.max(1, seconds) * 1000)
-  }, [auto, clearTimer])
+  }, [activeView, auto, clearTimer])
 
   const pushWatchEvent = useCallback((message, tone = 'info') => {
     setWatchEvents((current) => [
@@ -397,7 +400,7 @@ function App() {
   }, [doSync])
 
   useEffect(() => {
-    if (!auto) {
+    if (!auto || activeView !== 'monitor') {
       clearTimer()
       return
     }
@@ -405,7 +408,7 @@ function App() {
     if (bridge === 'ready' && data && !syncingRef.current && !timerRef.current) {
       scheduleNext(1)
     }
-  }, [auto, bridge, clearTimer, scheduleNext, data])
+  }, [activeView, auto, bridge, clearTimer, scheduleNext, data])
 
   useEffect(() => {
     let cancelled = false
@@ -547,11 +550,12 @@ function App() {
         </div>
 
         <nav className="nav-block">
-          <button className="nav-item active"><Sparkles size={17}/> Monitor</button>
-          <button className="nav-item" onClick={() => document.getElementById('turn-panel')?.scrollIntoView({ behavior: 'smooth' })}><CalendarClock size={17}/> Mi turno</button>
-          <button className="nav-item" onClick={() => document.getElementById('plan-panel')?.scrollIntoView({ behavior: 'smooth' })}><ListChecks size={17}/> Mi plan</button>
-          <button className="nav-item" onClick={() => setSort('urgent')}><BellRing size={17}/> Prioridad</button>
-          <button className="nav-item" onClick={() => document.getElementById('settings')?.scrollIntoView({ behavior: 'smooth' })}><SlidersHorizontal size={17}/> Preferencias</button>
+          <button className={`nav-item ${activeView === 'monitor' ? 'active' : ''}`} onClick={() => setActiveView('monitor')}><Sparkles size={17}/> Monitor</button>
+          <button className={`nav-item ${activeView === 'all' ? 'active' : ''}`} onClick={() => setActiveView('all')}><LibraryBig size={17}/> Todos los cursos</button>
+          <button className="nav-item" onClick={() => { setActiveView('monitor'); window.setTimeout(() => document.getElementById('turn-panel')?.scrollIntoView({ behavior: 'smooth' }), 50) }}><CalendarClock size={17}/> Mi turno</button>
+          <button className="nav-item" onClick={() => { setActiveView('monitor'); window.setTimeout(() => document.getElementById('plan-panel')?.scrollIntoView({ behavior: 'smooth' }), 50) }}><ListChecks size={17}/> Mi plan</button>
+          <button className="nav-item" onClick={() => { setActiveView('monitor'); setSort('urgent') }}><BellRing size={17}/> Prioridad</button>
+          <button className="nav-item" onClick={() => { setActiveView('monitor'); window.setTimeout(() => document.getElementById('settings')?.scrollIntoView({ behavior: 'smooth' }), 50) }}><SlidersHorizontal size={17}/> Preferencias</button>
         </nav>
 
         <div className="privacy-card">
@@ -570,8 +574,8 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MATRÍCULA · 2026-2</div>
-            <h1>Monitor de Vacantes UNI</h1>
-            <p>Vacantes en vivo, plan de matrícula y alerta de tu turno en una sola vista.</p>
+            <h1>{activeView === 'all' ? 'Todos los Cursos FIIS' : 'Monitor de Vacantes UNI'}</h1>
+            <p>{activeView === 'all' ? 'Cursos aperturados por carrera y ciclo, con vacantes actualizadas de forma escalonada.' : 'Vacantes en vivo, plan de matrícula y alerta de tu turno en una sola vista.'}</p>
           </div>
 
           <div className="top-actions">
@@ -597,6 +601,10 @@ function App() {
           </div>
         </header>
 
+        {activeView === 'all' ? (
+          <AllCoursesView bridge={bridge} />
+        ) : (
+          <>
         <section id="turn-panel" className={`turn-panel ${phase}`}>
           <div className="turn-visual">
             <img
@@ -737,6 +745,8 @@ function App() {
             <label><span>Música Bocchi</span><button onClick={toggleBgm}>{bgm ? 'Reproduciendo' : 'Desactivada'}</button></label>
           </div>
         </section>
+          </>
+        )}
       </main>
     </div>
   )

@@ -9,6 +9,15 @@
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+  // Serializa las operaciones del mismo tab trabajador para que el monitor normal
+  // y “Todos los cursos” no disparen lotes simultáneos contra la API UNI.
+  let operationQueue = Promise.resolve()
+  function enqueueOperation(task) {
+    const run = operationQueue.catch(() => {}).then(task)
+    operationQueue = run.catch(() => {})
+    return run
+  }
+
   function getAccessToken() {
     const match = document.cookie.match(/(?:^|;\s*)accessToken=([^;]+)/)
     if (!match) return null
@@ -118,6 +127,63 @@
     const workers = Math.min(CONFIG.concurrency, courses.length)
     await Promise.all(Array.from({ length: workers }, worker))
     results.sort((a, b) => a.orden - b.orden)
+
+    return {
+      courses: results,
+      totalCourses: results.length,
+      rateRemaining: remainingValues.length ? Math.min(...remainingValues) : null,
+      rateLimit: limitValues.length ? Math.max(...limitValues) : null,
+      updatedAt: new Date().toISOString(),
+      elapsedMs: Math.round(performance.now() - started),
+    }
+  }
+
+
+  async function collectCodes(rawCodes = []) {
+    if (!location.pathname.includes('/cursos-disponibles')) {
+      throw new Error('COURSES_PAGE_REQUIRED')
+    }
+
+    const token = getAccessToken()
+    if (!token) throw new Error('SESSION_REQUIRED')
+
+    const codes = [...new Set((Array.isArray(rawCodes) ? rawCodes : [])
+      .map((value) => String(value || '').trim().toUpperCase())
+      .filter((value) => /^[A-Z]{2}-?\d{3}$/.test(value)))]
+      .slice(0, 12)
+
+    if (!codes.length) {
+      return { courses: [], totalCourses: 0, rateRemaining: null, rateLimit: null, updatedAt: new Date().toISOString() }
+    }
+
+    const started = performance.now()
+    const results = []
+    const remainingValues = []
+    const limitValues = []
+
+    for (let index = 0; index < codes.length; index += 1) {
+      const codigo = codes[index]
+      if (index > 0) await sleep(1350)
+
+      try {
+        const result = await fetchCourse({ codigo, nombre: '', ciclo: '', creditos: '', orden: index }, token)
+        if (Number.isFinite(result._rateRemaining)) remainingValues.push(result._rateRemaining)
+        if (Number.isFinite(result._rateLimit)) limitValues.push(result._rateLimit)
+        delete result._rateRemaining
+        delete result._rateLimit
+        results.push(result)
+      } catch (error) {
+        results.push({ codigo, secciones: [], error: error.message || String(error) })
+
+        // Ante 429 paramos el lote. La web conserva la caché y reintentará después.
+        if (Number(error?.status) === 429 || /HTTP_?429/i.test(error?.message || '')) {
+          for (const deferred of codes.slice(index + 1)) {
+            results.push({ codigo: deferred, secciones: [], error: 'DEFERRED_RATE_LIMIT' })
+          }
+          break
+        }
+      }
+    }
 
     return {
       courses: results,
@@ -261,7 +327,14 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'UNI_COLLECT') {
-      collect()
+      enqueueOperation(() => collect())
+        .then((data) => sendResponse({ ok: true, data }))
+        .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
+      return true
+    }
+
+    if (message?.type === 'UNI_COLLECT_CODES') {
+      enqueueOperation(() => collectCodes(message?.codes || message?.payload?.codes || []))
         .then((data) => sendResponse({ ok: true, data }))
         .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
       return true

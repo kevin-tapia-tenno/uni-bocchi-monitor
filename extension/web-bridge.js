@@ -28,6 +28,7 @@
       SYNC: 'WEB_SYNC',
       TURN: 'WEB_TURN',
       OPEN_UNI: 'WEB_OPEN_UNI',
+      ALL_COURSES: 'WEB_ALL_COURSES',
     }
 
     const runtimeType = typeMap[msg.type]

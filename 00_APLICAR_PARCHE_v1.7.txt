@@ -1,0 +1,56 @@
+UNI BOCCHI MONITOR · PARCHE v1.7 · TODOS LOS CURSOS
+====================================================
+
+QUÉ AGREGA
+----------
+1. Nueva opción lateral: “Todos los cursos”.
+2. Catálogo estático generado desde la CARGA HORARIA OFICIAL 2026-II.
+3. Consulta de vacantes para cursos aunque no estén dentro de tus Cursos Disponibles.
+4. Filtros por:
+   - Todas las carreras
+   - Ingeniería Industrial
+   - Ingeniería de Sistemas
+   - Ingeniería de Software
+   - Inteligencia Artificial
+   - Ciclos 1 al 10
+   - Electivos / complementarios
+   - Código, nombre de curso o profesor
+5. Vista simple por sección:
+   - nombre del curso
+   - sección
+   - profesor
+   - horario / aula / tipo
+   - matriculados / tope
+   - vacantes libres
+   - barra de ocupación
+6. Actualización suave: caché de 5 minutos por curso.
+7. Consultas escalonadas: 10 códigos por lote y ~1.35 s entre solicitudes.
+8. Si la UNI devuelve HTTP 429, el lote se pausa y conserva los últimos datos.
+9. Mientras “Todos los cursos” está abierto, el monitor personal pausa su auto-refresco para no duplicar solicitudes.
+10. Se conserva el arreglo v1.6.4: la extensión NO acumula pestañas; reutiliza un único tab trabajador.
+
+IMPORTANTE SOBRE LA MALLA
+-------------------------
+- Sistemas: clasificación basada en el plan/avance 2026-II disponible.
+- Industrial: clasificación basada en el Plan de Estudios 2026 oficial.
+- Software: clasificación basada en la malla FIIS publicada y códigos de la carga 2026-II.
+- Inteligencia Artificial: la escuela es nueva y la web FIIS aún indica que su información está en actualización.
+  En la carga oficial 2026-II aparece IA001; se clasifica como ciclo 1. No se inventan cursos IA que no estén en la carga oficial.
+- Los códigos antiguos que siguen aperturados se ordenan con reglas de compatibilidad por código; los especiales se envían a Electivos / complementarios.
+
+ARCHIVOS DEL PARCHE
+-------------------
+WEB:
+  web/src/App.jsx
+  web/src/styles.css
+  web/src/components/AllCoursesView.jsx
+  web/src/data/allCoursesCatalog.js
+  web/src/lib/uniBridge.js
+
+EXTENSIÓN:
+  extension/background.js
+  extension/uni-content.js
+  extension/web-bridge.js
+  extension/manifest.json
+
+No reemplaces ni borres tus carpetas public/assets ni extension/icons.

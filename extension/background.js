@@ -194,6 +194,45 @@ async function sync() {
   return response
 }
 
+
+async function collectAllCourses(rawCodes = []) {
+  const codes = [...new Set((Array.isArray(rawCodes) ? rawCodes : [])
+    .map((value) => String(value || '').trim().toUpperCase())
+    .filter((value) => /^[A-Z]{2}-?\d{3}$/.test(value)))]
+    .slice(0, 12)
+
+  if (!codes.length) {
+    return { ok: true, data: { courses: [], totalCourses: 0, updatedAt: new Date().toISOString() } }
+  }
+
+  let tab
+  try {
+    tab = await getValidWorkerTab()
+  } catch (error) {
+    return { ok: false, error: error.message || String(error) }
+  }
+
+  try {
+    const response = await sendToUniTab(tab.id, { type: 'UNI_COLLECT_CODES', codes })
+    if (!response?.ok && (response?.error === 'SESSION_REQUIRED' || response?.error === 'COURSES_PAGE_REQUIRED')) {
+      await chrome.tabs.update(tab.id, { active: true }).catch(() => {})
+    }
+    return response
+  } catch (error) {
+    const current = await chrome.tabs.get(tab.id).catch(() => null)
+    if (!current || !hasPath(current.url, '/cursos-disponibles')) {
+      if (current?.id && isUniUrl(current?.url)) await chrome.tabs.update(current.id, { active: true }).catch(() => {})
+      return { ok: false, error: 'SESSION_REQUIRED' }
+    }
+
+    try {
+      return await reloadAndSend(tab.id, { type: 'UNI_COLLECT_CODES', codes })
+    } catch (retryError) {
+      return { ok: false, error: retryError.message || String(retryError) }
+    }
+  }
+}
+
 function isUsableTurnCache(cache) {
   if (!cache || typeof cache !== 'object' || !cache.detected) return false
 
@@ -294,6 +333,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'WEB_OPEN_UNI') {
     openUni(message?.payload?.path)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
+    return true
+  }
+
+  if (message?.type === 'WEB_ALL_COURSES') {
+    collectAllCourses(message?.payload?.codes || [])
       .then(sendResponse)
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
     return true
