@@ -42,7 +42,7 @@
       if (cells.length < 2) return
 
       const code = (cells[0].textContent || '').trim().replace(/\s+/g, '').toUpperCase()
-      if (!/^[A-Z]{2}\d{3}$/.test(code)) return
+      if (!/^(?:[A-Z]{2}\d{3}|[A-Z]{3}\d{2})$/.test(code)) return
 
       const rowText = (row.innerText || '').replace(/\s+/g, ' ').trim()
       if (/no\s+aperturado/i.test(rowText)) return
@@ -59,6 +59,11 @@
     return courses
   }
 
+  // Códigos FIIS válidos observados en la carga oficial 2026-2:
+  // - formato estándar: SI505, HU501, SW605 (2 letras + 3 dígitos)
+  // - formato base/común: BRN01, BRC01, BEF01... (3 letras + 2 dígitos)
+  // - Software puede venir con guion: SW-603, SW-608, SW-609.
+  // La validación de collectCodes acepta los tres formatos.
   function normalizeCourseCodeForApi(value = '') {
     // La carga horaria publica algunos cursos de Software como SW-603, SW-608
     // y SW-609, pero el endpoint de Matrícula usa el código canónico sin guion.
@@ -157,7 +162,7 @@
 
     const codes = [...new Set((Array.isArray(rawCodes) ? rawCodes : [])
       .map((value) => String(value || '').trim().toUpperCase())
-      .filter((value) => /^[A-Z]{2}-?\d{3}$/.test(value)))]
+      .filter((value) => /^(?:[A-Z]{2}-?\d{3}|[A-Z]{3}\d{2})$/.test(value)))]
       .slice(0, 12)
 
     if (!codes.length) {

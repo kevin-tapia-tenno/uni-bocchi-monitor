@@ -1,2 +1,2 @@
-v1.11.1
-Hotfix: normaliza códigos SW-603 / SW-608 / SW-609 únicamente al consultar la API UNI.
+v1.11.2
+Fix: aceptar códigos FIIS AAA99 (BRN01, BRC01, BEF01, etc.) además de AA999 y SW-999.
