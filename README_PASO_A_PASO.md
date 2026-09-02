@@ -1,63 +1,27 @@
-# UNI Bocchi Monitor · parche v1.11
+# UNI Bocchi Monitor — Hotfix v1.11.1
 
-Este parche modifica únicamente la vista **Todos los cursos**.
+## Qué corrige
+En la Carga Horaria 2026-2 hay exactamente tres códigos de Software con guion:
+- SW-603
+- SW-608
+- SW-609
 
-## Objetivo
+La UI debe seguir mostrándolos con guion, pero la consulta de vacantes se envía al endpoint usando el código canónico sin guion:
+- SW603
+- SW608
+- SW609
 
-Reducir al mínimo las consultas contra Matrícula UNI:
+Esto evita que esos tres cursos queden permanentemente como "Sin dato / Reintento pendiente" mientras cursos como SW605 sí cargan normalmente.
 
-1. Abrir **Todos los cursos** no realiza ninguna solicitud.
-2. Primero eliges filtros (carrera/malla/ciclo) o escribes una búsqueda.
-3. La pantalla muestra únicamente el catálogo que coincide con esos filtros.
-4. Las vacantes se consultan solamente cuando pulsas **Actualizar filtrados**.
-5. No existe actualización automática, ni cada 5 min, ni cada 10 min.
-6. Cada tarjeta tiene un botón **↻** que actualiza exclusivamente ese curso.
+## Cómo aplicar
+1. Cierra o deja abierto VS Code; no importa.
+2. Copia `extension/uni-content.js` de este parche.
+3. Pégalo en `C:\Proyectos\uni-bocchi-monitor\extension\uni-content.js`.
+4. Acepta reemplazar el archivo.
+5. En Brave abre `brave://extensions/`.
+6. Busca **UNI Bocchi Bridge** y pulsa **Recargar**.
+7. Recarga también la pestaña de Matrícula UNI con Ctrl+F5.
+8. Recarga UNI Bocchi Monitor con Ctrl+F5.
+9. En `Todos los cursos`, filtra Software / Ciclo 6 y pulsa ↻ en SW-603, SW-608 y SW-609.
 
-## Instalación
-
-Copia la carpeta `web` del parche sobre:
-
-`C:\Proyectos\uni-bocchi-monitor\web`
-
-Acepta reemplazar archivos. No borres `web\public` ni tus recursos Bocchi.
-
-La extensión no cambia, por lo que no hace falta reemplazar `extension` ni recargarla.
-
-Después ejecuta:
-
-```powershell
-cd C:\Proyectos\uni-bocchi-monitor\web
-npm run dev
-```
-
-Abre la URL de Vite y pulsa `Ctrl + F5`.
-
-## Prueba recomendada
-
-1. Entra a **Todos los cursos**.
-   - Debe indicar que selecciones un filtro.
-   - No debe comenzar una consulta global.
-2. Elige, por ejemplo:
-   - Carrera: Ingeniería de Software
-   - Ciclo: 6
-3. Deben aparecer únicamente los cursos correspondientes.
-4. Todavía no debe comenzar ninguna consulta por sí sola.
-5. Pulsa **Actualizar filtrados**.
-   - Solo esos cursos deben consultarse.
-6. Pulsa **↻** en `SW-603` (o cualquier otro curso visible).
-   - Solo ese curso debe volver a consultarse.
-7. Espera varios minutos sin tocar nada.
-   - No debe aparecer una nueva actualización automática.
-
-## Publicar en Vercel
-
-Cuando confirmes el funcionamiento:
-
-```powershell
-cd C:\Proyectos\uni-bocchi-monitor
-git add .
-git commit -m "Todos los cursos manual y filtrado v1.11"
-git push
-```
-
-Vercel debería desplegar el commit automáticamente si el repositorio continúa conectado.
+No hace falta desplegar Vercel porque este hotfix está en la extensión local. Si distribuyes la extensión a tus compañeros, sí debes incluir este `uni-content.js` en el paquete que les entregues.

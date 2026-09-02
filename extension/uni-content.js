@@ -59,8 +59,16 @@
     return courses
   }
 
+  function normalizeCourseCodeForApi(value = '') {
+    // La carga horaria publica algunos cursos de Software como SW-603, SW-608
+    // y SW-609, pero el endpoint de Matrícula usa el código canónico sin guion.
+    // Conservamos course.codigo original para la UI/caché y normalizamos solo la URL.
+    return String(value || '').trim().toUpperCase().replace(/-/g, '')
+  }
+
   async function fetchCourse(course, token) {
-    const response = await fetch(`/api/matricula/cursos/${encodeURIComponent(course.codigo)}/horarios`, {
+    const apiCode = normalizeCourseCodeForApi(course.codigo)
+    const response = await fetch(`/api/matricula/cursos/${encodeURIComponent(apiCode)}/horarios`, {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',

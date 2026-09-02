@@ -1,2 +1,2 @@
-UNI Bocchi Monitor · Parche v1.11
-Todos los cursos: filtros antes de consultar + actualización exclusivamente manual + refresh por curso siempre disponible.
+v1.11.1
+Hotfix: normaliza códigos SW-603 / SW-608 / SW-609 únicamente al consultar la API UNI.
