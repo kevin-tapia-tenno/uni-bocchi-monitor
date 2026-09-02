@@ -1,0 +1,18 @@
+UNI BOCCHI MONITOR · PARCHE v1.10
+
+CAMBIOS
+- Mejora visual del botón "Actualizar ahora".
+- Nuevo botón ↻ en cada curso que quedó sin datos / reintento pendiente.
+- El botón ↻ consulta SOLO ese código de curso, no toda la vista.
+- Mientras se consulta un curso, su ↻ gira y se bloquean temporalmente otras consultas para evitar duplicados.
+- Si el curso carga correctamente, el botón de reintento desaparece automáticamente.
+- Se conserva el comportamiento v1.9: carga inicial una sola vez al abrir, auto desactivado por defecto y auto opcional cada 10 min.
+
+INSTALACION
+1) Copia la carpeta web del parche sobre C:\Proyectos\uni-bocchi-monitor\web
+2) Acepta reemplazar los archivos.
+3) No hace falta tocar ni recargar la extensión.
+4) Ejecuta npm run dev desde la carpeta web.
+5) Haz Ctrl+F5 en la web.
+
+- El estado final distingue intentados, con datos y pendientes.

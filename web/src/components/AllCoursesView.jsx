@@ -218,7 +218,7 @@ function VacancyBar({ section }) {
   )
 }
 
-function AllCourseCard({ course, live, career, plan }) {
+function AllCourseCard({ course, live, career, plan, onRetry, retrying, refreshBlocked }) {
   const sections = mergeLiveSections(course, live)
   const hasLiveData = Array.isArray(live?.secciones) && live.secciones.length > 0
   const hasError = Boolean(live?.error)
@@ -232,7 +232,21 @@ function AllCourseCard({ course, live, career, plan }) {
         </div>
         <div className="all-course-meta-wrap">
           <div className="all-course-meta">{detailedMetaLabel(course, career, plan)}</div>
-          {!hasLiveData ? <span className={`all-live-state ${hasError ? 'warn' : ''}`}>{hasError ? 'Reintento pendiente' : 'Pendiente de consulta'}</span> : null}
+          {!hasLiveData ? (
+            <div className="all-course-retry-wrap">
+              <span className={`all-live-state ${hasError ? 'warn' : ''}`}>{hasError ? 'Reintento pendiente' : 'Pendiente de consulta'}</span>
+              <button
+                type="button"
+                className={`all-course-retry ${retrying ? 'busy' : ''}`}
+                onClick={() => onRetry?.(course.code)}
+                disabled={refreshBlocked || retrying}
+                title={`Reintentar solo ${course.code}`}
+                aria-label={`Reintentar consulta de ${course.code}`}
+              >
+                <RefreshCw size={13} className={retrying ? 'spin' : ''}/>
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -271,6 +285,7 @@ export default function AllCoursesView({ bridge }) {
   const [autoEnabled, setAutoEnabled] = useState(false)
   const [autoCycle, setAutoCycle] = useState(0)
   const [nextAutoAt, setNextAutoAt] = useState(null)
+  const [singleRefreshCode, setSingleRefreshCode] = useState('')
 
   const runningRef = useRef(false)
   const mountedRef = useRef(true)
@@ -332,6 +347,7 @@ export default function AllCoursesView({ bridge }) {
       setProgress({ running: true, done: 0, total: needed.length, reason })
       if (reason === 'initial') setMessage(`Carga inicial · consultando ${needed.length} curso(s) aperturados.`)
       else if (reason === 'auto') setMessage(`Actualización automática · consultando ${needed.length} curso(s) visibles.`)
+      else if (reason === 'single') setMessage(`Reintentando solo ${needed[0]}…`)
       else setMessage(`Actualización manual · consultando ${needed.length} curso(s) visibles.`)
     }
 
@@ -403,14 +419,28 @@ export default function AllCoursesView({ bridge }) {
           if (mountedRef.current) setMessage(`Quedan pocas consultas disponibles. Pausa corta para evitar HTTP 429 · ${finished.size}/${needed.length}.`)
           await new Promise((resolve) => setTimeout(resolve, LOW_RATE_PAUSE_MS))
         } else if (queue.length) {
-          if (mountedRef.current) setMessage(`${reason === 'initial' ? 'Carga inicial' : reason === 'auto' ? 'Automático' : 'Manual'} · ${finished.size}/${needed.length} curso(s) listos.`)
+          if (mountedRef.current) {
+            const prefix = reason === 'initial' ? 'Carga inicial' : reason === 'auto' ? 'Automático' : reason === 'single' ? `Reintento ${needed[0]}` : 'Manual'
+            setMessage(`${prefix} · ${finished.size}/${needed.length} curso(s) listos.`)
+          }
           await new Promise((resolve) => setTimeout(resolve, 500))
         }
       }
 
       if (mountedRef.current) {
-        const suffix = autoEnabled ? ' Automático activo: próxima revisión en 10 min.' : ' Automático desactivado.'
-        setMessage(`Consulta terminada · ${finished.size}/${needed.length} curso(s).${suffix}`)
+        if (reason === 'single') {
+          const code = needed[0]
+          const refreshed = working?.[code]
+          const ok = Array.isArray(refreshed?.secciones) && refreshed.secciones.length > 0
+          setMessage(ok
+            ? `${code} actualizado correctamente.`
+            : `${code} todavía no devolvió vacantes. Puedes volver a usar ↻ en ese curso.`)
+        } else {
+          const withData = needed.filter((code) => Array.isArray(working?.[code]?.secciones) && working[code].secciones.length > 0).length
+          const pending = Math.max(0, needed.length - withData)
+          const suffix = autoEnabled ? ' Automático activo: próxima revisión en 10 min.' : ' Automático desactivado.'
+          setMessage(`Consulta terminada · ${finished.size}/${needed.length} intentados · ${withData} con datos${pending ? ` · ${pending} pendientes` : ''}.${suffix}`)
+        }
       }
       return true
     } catch (error) {
@@ -472,6 +502,16 @@ export default function AllCoursesView({ bridge }) {
     if (completed && autoEnabled && mountedRef.current) setAutoCycle((value) => value + 1)
   }
 
+  async function retrySingleCourse(code) {
+    if (!code || runningRef.current || bridge !== 'ready') return
+    setSingleRefreshCode(code)
+    try {
+      await runRefresh([code], { reason: 'single' })
+    } finally {
+      if (mountedRef.current) setSingleRefreshCode('')
+    }
+  }
+
   function toggleAuto() {
     setAutoEnabled((current) => {
       const next = !current
@@ -515,13 +555,16 @@ export default function AllCoursesView({ bridge }) {
         <div className="all-refresh-actions">
           <button
             type="button"
-            className="btn btn-primary all-manual-refresh"
+            className="all-manual-refresh"
             onClick={manualRefresh}
             disabled={progress.running || bridge !== 'ready' || !refreshCodes.length}
-            title="Consulta de nuevo, ahora mismo, los cursos visibles con los filtros actuales."
+            title="Actualización manual de los cursos visibles con los filtros actuales."
           >
-            <RefreshCw size={15} className={progress.running ? 'spin' : ''}/>
-            {progress.running ? 'Consultando…' : 'Actualizar ahora'}
+            <span className="all-manual-refresh-icon"><RefreshCw size={15} className={progress.running ? 'spin' : ''}/></span>
+            <span className="all-manual-refresh-copy">
+              <strong>{progress.running ? 'Consultando…' : 'Actualizar ahora'}</strong>
+              <small>{progress.running ? `${progress.done}/${progress.total} cursos` : 'actualización manual'}</small>
+            </span>
           </button>
           <button
             type="button"
@@ -561,7 +604,18 @@ export default function AllCoursesView({ bridge }) {
           <section className="all-career-group" key={group.key}>
             <div className="all-group-heading"><h3>{group.label}</h3><span>{group.courses.length}</span></div>
             <div className="all-group-courses">
-              {group.courses.map((course) => <AllCourseCard course={course} live={cache?.[course.code]} career={career} plan={plan} key={`${group.key}-${course.code}`} />)}
+              {group.courses.map((course) => (
+                <AllCourseCard
+                  course={course}
+                  live={cache?.[course.code]}
+                  career={career}
+                  plan={plan}
+                  onRetry={retrySingleCourse}
+                  retrying={singleRefreshCode === course.code}
+                  refreshBlocked={progress.running || bridge !== 'ready'}
+                  key={`${group.key}-${course.code}`}
+                />
+              ))}
             </div>
           </section>
         )) : (
@@ -570,7 +624,7 @@ export default function AllCoursesView({ bridge }) {
       </div>
 
       <div className="all-courses-footnote">
-        “Todos los cursos” no vigila, no recomienda y no intenta matricular. Al entrar hace una carga inicial; después no vuelve a consultar por sí sola salvo que actives “Auto · 10 min”. “Actualizar ahora” siempre fuerza una consulta manual de los cursos visibles.
+        “Todos los cursos” no vigila, no recomienda y no intenta matricular. Al entrar hace una carga inicial; después no vuelve a consultar por sí sola salvo que actives “Auto · 10 min”. “Actualizar ahora” refresca los cursos visibles y ↻ reintenta únicamente el curso que no pudo cargar.
       </div>
     </section>
   )
