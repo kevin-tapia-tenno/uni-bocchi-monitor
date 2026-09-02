@@ -1269,3 +1269,41 @@ body::before {
   .all-manual-refresh-copy small { display: none; }
   .all-course-retry { width: 29px; height: 29px; }
 }
+
+/* ================================================================
+   v1.11 · TODOS LOS CURSOS: FILTRO PRIMERO + CONSULTA 100% MANUAL
+   ================================================================ */
+.all-live-state.ok {
+  color: var(--good);
+  background: rgba(110,221,156,.08);
+  border: 1px solid rgba(110,221,156,.12);
+}
+
+/* Ya no existe un segundo botón de actualización automática. */
+.all-refresh-actions {
+  display: flex;
+  grid-template-columns: none;
+}
+.all-refresh-actions .all-manual-refresh {
+  min-width: 178px;
+}
+
+/* El estado inicial comunica que abrir la vista no genera tráfico. */
+.all-courses-empty {
+  text-align: center;
+  padding: 24px;
+}
+.all-courses-empty span {
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .all-refresh-actions {
+    display: block;
+  }
+  .all-refresh-actions .all-manual-refresh {
+    width: 100%;
+    min-width: 0;
+  }
+}

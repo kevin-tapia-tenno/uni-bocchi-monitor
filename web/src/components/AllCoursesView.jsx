@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Clock3, Pause, Play, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { BookOpen, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { getAllCourseVacancies } from '../lib/uniBridge'
 import { ALL_COURSES_CATALOG } from '../data/allCoursesCatalog'
 
 const CACHE_KEY = 'uni-bocchi-all-courses-cache-v1'
-const AUTO_REFRESH_MS = 10 * 60 * 1000
 const BATCH_SIZE = 10
 const RATE_LIMIT_PAUSE_MS = 20 * 1000
 const LOW_RATE_PAUSE_MS = 12 * 1000
@@ -232,21 +231,21 @@ function AllCourseCard({ course, live, career, plan, onRetry, retrying, refreshB
         </div>
         <div className="all-course-meta-wrap">
           <div className="all-course-meta">{detailedMetaLabel(course, career, plan)}</div>
-          {!hasLiveData ? (
-            <div className="all-course-retry-wrap">
-              <span className={`all-live-state ${hasError ? 'warn' : ''}`}>{hasError ? 'Reintento pendiente' : 'Pendiente de consulta'}</span>
-              <button
-                type="button"
-                className={`all-course-retry ${retrying ? 'busy' : ''}`}
-                onClick={() => onRetry?.(course.code)}
-                disabled={refreshBlocked || retrying}
-                title={`Reintentar solo ${course.code}`}
-                aria-label={`Reintentar consulta de ${course.code}`}
-              >
-                <RefreshCw size={13} className={retrying ? 'spin' : ''}/>
-              </button>
-            </div>
-          ) : null}
+          <div className="all-course-retry-wrap">
+            <span className={`all-live-state ${hasLiveData ? 'ok' : hasError ? 'warn' : ''}`}>
+              {hasLiveData ? 'Con datos' : hasError ? 'Reintento pendiente' : 'Sin consultar'}
+            </span>
+            <button
+              type="button"
+              className={`all-course-retry ${retrying ? 'busy' : ''}`}
+              onClick={() => onRetry?.(course.code)}
+              disabled={refreshBlocked || retrying}
+              title={`Actualizar únicamente ${course.code}`}
+              aria-label={`Actualizar únicamente ${course.code}`}
+            >
+              <RefreshCw size={13} className={retrying ? 'spin' : ''}/>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -281,16 +280,12 @@ export default function AllCoursesView({ bridge }) {
   const [query, setQuery] = useState('')
   const [cache, setCache] = useState(() => readCache())
   const [progress, setProgress] = useState({ running: false, done: 0, total: 0, reason: '' })
-  const [message, setMessage] = useState('Al abrir esta vista se hace una sola consulta inicial. El automático empieza desactivado.')
-  const [autoEnabled, setAutoEnabled] = useState(false)
-  const [autoCycle, setAutoCycle] = useState(0)
-  const [nextAutoAt, setNextAutoAt] = useState(null)
+  const [message, setMessage] = useState('Selecciona al menos un filtro. No se realizará ninguna solicitud hasta que pulses “Actualizar filtrados”.')
   const [singleRefreshCode, setSingleRefreshCode] = useState('')
 
   const runningRef = useRef(false)
   const mountedRef = useRef(true)
   const refreshGenerationRef = useRef(0)
-  const initialRefreshStartedRef = useRef(false)
 
   useEffect(() => () => {
     mountedRef.current = false
@@ -298,9 +293,12 @@ export default function AllCoursesView({ bridge }) {
   }, [])
 
   const planOptions = PLAN_OPTIONS[career] || PLAN_OPTIONS.all
-  const allCodes = useMemo(() => ALL_COURSES_CATALOG.map((course) => course.code), [])
+
+  const hasActiveFilters = career !== 'all' || cycle !== 'all' || Boolean(query.trim())
 
   const filtered = useMemo(() => {
+    if (!hasActiveFilters) return []
+
     const q = query.trim().toLocaleLowerCase('es-PE')
     return ALL_COURSES_CATALOG
       .filter((course) => courseMatchesCareer(course, career))
@@ -312,7 +310,7 @@ export default function AllCoursesView({ bridge }) {
         return `${course.code} ${course.name} ${professors}`.toLocaleLowerCase('es-PE').includes(q)
       })
       .sort((a, b) => entrySort(a, b, career, plan))
-  }, [career, plan, cycle, query])
+  }, [career, plan, cycle, query, hasActiveFilters])
 
   const groups = useMemo(() => {
     if (career !== 'all') {
@@ -345,10 +343,8 @@ export default function AllCoursesView({ bridge }) {
 
     if (mountedRef.current) {
       setProgress({ running: true, done: 0, total: needed.length, reason })
-      if (reason === 'initial') setMessage(`Carga inicial · consultando ${needed.length} curso(s) aperturados.`)
-      else if (reason === 'auto') setMessage(`Actualización automática · consultando ${needed.length} curso(s) visibles.`)
-      else if (reason === 'single') setMessage(`Reintentando solo ${needed[0]}…`)
-      else setMessage(`Actualización manual · consultando ${needed.length} curso(s) visibles.`)
+      if (reason === 'single') setMessage(`Actualizando únicamente ${needed[0]}…`)
+      else setMessage(`Actualización manual · consultando ${needed.length} curso(s) filtrados.`)
     }
 
     let working = { ...readCache() }
@@ -413,14 +409,14 @@ export default function AllCoursesView({ bridge }) {
         }
 
         if (hitRateLimit) {
-          if (mountedRef.current) setMessage(`La UNI limitó temporalmente las consultas. Pausa de ${Math.round(RATE_LIMIT_PAUSE_MS / 1000)} s y reintento automático de los pendientes.`)
+          if (mountedRef.current) setMessage(`La UNI limitó temporalmente las consultas. Pausa de ${Math.round(RATE_LIMIT_PAUSE_MS / 1000)} s y reintento de los pendientes dentro de esta misma actualización manual.`)
           await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_PAUSE_MS))
         } else if (response?.rateRemaining !== null && Number(response?.rateRemaining) <= 5 && queue.length) {
           if (mountedRef.current) setMessage(`Quedan pocas consultas disponibles. Pausa corta para evitar HTTP 429 · ${finished.size}/${needed.length}.`)
           await new Promise((resolve) => setTimeout(resolve, LOW_RATE_PAUSE_MS))
         } else if (queue.length) {
           if (mountedRef.current) {
-            const prefix = reason === 'initial' ? 'Carga inicial' : reason === 'auto' ? 'Automático' : reason === 'single' ? `Reintento ${needed[0]}` : 'Manual'
+            const prefix = reason === 'single' ? `Curso ${needed[0]}` : 'Manual'
             setMessage(`${prefix} · ${finished.size}/${needed.length} curso(s) listos.`)
           }
           await new Promise((resolve) => setTimeout(resolve, 500))
@@ -438,8 +434,7 @@ export default function AllCoursesView({ bridge }) {
         } else {
           const withData = needed.filter((code) => Array.isArray(working?.[code]?.secciones) && working[code].secciones.length > 0).length
           const pending = Math.max(0, needed.length - withData)
-          const suffix = autoEnabled ? ' Automático activo: próxima revisión en 10 min.' : ' Automático desactivado.'
-          setMessage(`Consulta terminada · ${finished.size}/${needed.length} intentados · ${withData} con datos${pending ? ` · ${pending} pendientes` : ''}.${suffix}`)
+          setMessage(`Consulta manual terminada · ${finished.size}/${needed.length} intentados · ${withData} con datos${pending ? ` · ${pending} pendientes` : ''}. No habrá nuevas solicitudes hasta que vuelvas a pulsar “Actualizar filtrados”.`)
         }
       }
       return true
@@ -453,42 +448,26 @@ export default function AllCoursesView({ bridge }) {
       runningRef.current = false
       if (mountedRef.current) setProgress((current) => ({ ...current, running: false }))
     }
-  }, [autoEnabled, bridge])
+  }, [bridge])
 
-  // ÚNICA consulta automática al entrar a “Todos los cursos”. Al salir de la vista
-  // el componente se desmonta y no se inicia ninguna consulta desde otras secciones.
+  // No hay carga inicial ni temporizadores. Cambiar filtros solo modifica el catálogo
+  // visible; la red se usa únicamente al pulsar “Actualizar filtrados” o ↻ en un curso.
   useEffect(() => {
-    if (bridge !== 'ready' || initialRefreshStartedRef.current) return
-    initialRefreshStartedRef.current = true
-    runRefresh(allCodes, { reason: 'initial' })
-  }, [allCodes, bridge, runRefresh])
-
-  // El automático SIEMPRE nace apagado. Solo se programa después de que el usuario
-  // lo habilita explícitamente, y la primera ejecución ocurre 10 minutos después.
-  useEffect(() => {
-    if (!autoEnabled || bridge !== 'ready') {
-      setNextAutoAt(null)
-      return undefined
+    if (!hasActiveFilters) {
+      setMessage('Selecciona al menos un filtro. No se realizará ninguna solicitud hasta que pulses “Actualizar filtrados”.')
+      return
     }
-
-    const target = Date.now() + AUTO_REFRESH_MS
-    setNextAutoAt(target)
-
-    const timer = window.setTimeout(async () => {
-      await runRefresh(refreshCodes, { reason: 'auto' })
-      if (mountedRef.current) setAutoCycle((value) => value + 1)
-    }, AUTO_REFRESH_MS)
-
-    return () => window.clearTimeout(timer)
-  }, [autoCycle, autoEnabled, bridge, refreshCodes, runRefresh])
+    setMessage(`${filtered.length} curso(s) coinciden con los filtros. Pulsa “Actualizar filtrados” para consultar únicamente esos cursos.`)
+  }, [career, plan, cycle, query, hasActiveFilters, filtered.length])
 
   const latest = useMemo(() => {
-    const stamps = Object.values(cache || {})
-      .map((item) => new Date(item?.updatedAt || 0).getTime())
+    if (!hasActiveFilters || !filtered.length) return 'Sin consulta'
+    const stamps = filtered
+      .map((course) => new Date(cache?.[course.code]?.updatedAt || 0).getTime())
       .filter((value) => Number.isFinite(value) && value > 0)
     if (!stamps.length) return 'Sin datos aún'
     return new Date(Math.max(...stamps)).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
-  }, [cache])
+  }, [cache, filtered, hasActiveFilters])
 
   function changeCareer(nextCareer) {
     const nextOptions = PLAN_OPTIONS[nextCareer] || PLAN_OPTIONS.all
@@ -498,8 +477,8 @@ export default function AllCoursesView({ bridge }) {
   }
 
   async function manualRefresh() {
-    const completed = await runRefresh(refreshCodes, { reason: 'manual' })
-    if (completed && autoEnabled && mountedRef.current) setAutoCycle((value) => value + 1)
+    if (!hasActiveFilters || !refreshCodes.length) return
+    await runRefresh(refreshCodes, { reason: 'manual' })
   }
 
   async function retrySingleCourse(code) {
@@ -512,31 +491,17 @@ export default function AllCoursesView({ bridge }) {
     }
   }
 
-  function toggleAuto() {
-    setAutoEnabled((current) => {
-      const next = !current
-      setMessage(next
-        ? 'Automático activado. La próxima consulta será en 10 minutos; puedes usar “Actualizar ahora” cuando quieras.'
-        : 'Automático desactivado. No habrá más consultas periódicas en esta vista.')
-      return next
-    })
-  }
-
-  const nextAutoLabel = autoEnabled && nextAutoAt
-    ? `Próxima automática aprox. ${new Date(nextAutoAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`
-    : 'Sin actualización periódica'
-
   return (
     <section className="all-courses-view">
       <div className="all-courses-intro">
         <div>
           <div className="all-courses-kicker"><BookOpen size={15}/> TODOS LOS CURSOS APERTURADOS</div>
           <h2>Vacantes FIIS 2026-2</h2>
-          <p>Solo aparecen cursos presentes en la Carga Horaria Oficial 2026-2. Esta vista consulta vacantes únicamente mientras está abierta.</p>
+          <p>Solo aparecen cursos presentes en la Carga Horaria Oficial 2026-2. No se consulta nada al abrir esta vista: primero filtra y luego actualiza únicamente esos cursos.</p>
         </div>
         <div className="all-courses-refresh-note">
-          <Clock3 size={15}/>
-          <div><strong>{autoEnabled ? 'Automático activo · cada 10 min' : 'Automático desactivado'}</strong><span>{nextAutoLabel}</span></div>
+          <RefreshCw size={15}/>
+          <div><strong>Modo manual</strong><span>Sin consultas al entrar ni temporizadores. Filtra primero y actualiza solo lo que necesitas.</span></div>
         </div>
       </div>
 
@@ -557,24 +522,14 @@ export default function AllCoursesView({ bridge }) {
             type="button"
             className="all-manual-refresh"
             onClick={manualRefresh}
-            disabled={progress.running || bridge !== 'ready' || !refreshCodes.length}
-            title="Actualización manual de los cursos visibles con los filtros actuales."
+            disabled={progress.running || bridge !== 'ready' || !hasActiveFilters || !refreshCodes.length}
+            title="Consulta manual únicamente los cursos mostrados por los filtros actuales."
           >
             <span className="all-manual-refresh-icon"><RefreshCw size={15} className={progress.running ? 'spin' : ''}/></span>
             <span className="all-manual-refresh-copy">
-              <strong>{progress.running ? 'Consultando…' : 'Actualizar ahora'}</strong>
-              <small>{progress.running ? `${progress.done}/${progress.total} cursos` : 'actualización manual'}</small>
+              <strong>{progress.running ? 'Consultando…' : 'Actualizar filtrados'}</strong>
+              <small>{progress.running ? `${progress.done}/${progress.total} cursos` : hasActiveFilters ? `${refreshCodes.length} curso(s)` : 'selecciona un filtro'}</small>
             </span>
-          </button>
-          <button
-            type="button"
-            className={`btn all-auto-refresh ${autoEnabled ? 'active' : ''}`}
-            onClick={toggleAuto}
-            disabled={bridge !== 'ready'}
-            title="Activa o desactiva una consulta automática cada 10 minutos. Siempre inicia desactivada al abrir esta vista."
-          >
-            {autoEnabled ? <Pause size={15}/> : <Play size={15}/>}
-            {autoEnabled ? 'Auto · 10 min' : 'Auto desactivado'}
           </button>
         </div>
       </div>
@@ -619,12 +574,16 @@ export default function AllCoursesView({ bridge }) {
             </div>
           </section>
         )) : (
-          <div className="all-courses-empty"><BookOpen size={26}/><strong>No hay cursos aperturados con estos filtros.</strong><span>Prueba con otra carrera, malla, ciclo o búsqueda.</span></div>
+          <div className="all-courses-empty">
+            <BookOpen size={26}/>
+            <strong>{hasActiveFilters ? 'No hay cursos aperturados con estos filtros.' : 'Selecciona un filtro para comenzar.'}</strong>
+            <span>{hasActiveFilters ? 'Prueba con otra carrera, malla, ciclo o búsqueda.' : 'No se realizará ninguna solicitud hasta que elijas un filtro y pulses “Actualizar filtrados”.'}</span>
+          </div>
         )}
       </div>
 
       <div className="all-courses-footnote">
-        “Todos los cursos” no vigila, no recomienda y no intenta matricular. Al entrar hace una carga inicial; después no vuelve a consultar por sí sola salvo que actives “Auto · 10 min”. “Actualizar ahora” refresca los cursos visibles y ↻ reintenta únicamente el curso que no pudo cargar.
+        “Todos los cursos” no vigila, no recomienda y no intenta matricular. No hace ninguna consulta automática. Selecciona filtros y usa “Actualizar filtrados” para consultar únicamente los cursos visibles; ↻ actualiza solo el curso de esa tarjeta.
       </div>
     </section>
   )

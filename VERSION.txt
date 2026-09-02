@@ -1,2 +1,2 @@
-UNI Bocchi Monitor · Patch v1.10
-Todos los cursos: refresh individual por curso + mejora visual del refresh manual.
+UNI Bocchi Monitor · Parche v1.11
+Todos los cursos: filtros antes de consultar + actualización exclusivamente manual + refresh por curso siempre disponible.
