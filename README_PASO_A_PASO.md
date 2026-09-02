@@ -1,42 +1,51 @@
-# UNI Bocchi Monitor — Hotfix v1.11.2
+# UNI Bocchi Monitor — Hotfix v1.11.3
 
 ## Qué corrige
 
-La extensión solo aceptaba códigos con el formato `AA999` (por ejemplo `SI505`) y, tras el hotfix anterior, `AA-999` (por ejemplo `SW-603`).
+El hotfix v1.11.2 corrigió la validación dentro de `uni-content.js`, pero quedaba una segunda validación en `background.js`.
 
-La Carga Horaria Oficial 2026-2 también contiene cursos base con formato `AAA99`, por ejemplo:
+Esa validación todavía aceptaba únicamente códigos con 2 letras + 3 dígitos, por ejemplo:
 
-- `BEF01`
-- `BEG01`
-- `BFI01`
-- `BIC01`
-- `BMA01`
-- `BMA02`
-- `BMA03`
-- `BQU01`
-- `BRC01`
-- `BRN01`
+- HU501
+- SI505
+- SW503
+- SW-603
 
-Esos códigos eran descartados **antes de hacer el fetch**, por lo que la web mostraba `Sin dato` / `Reintento pendiente` aunque el botón ↻ se pulsara varias veces.
+Por eso códigos base FIIS de 3 letras + 2 dígitos eran descartados antes de llegar a `uni-content.js`, por ejemplo:
 
-v1.11.2 permite los tres formatos reales encontrados:
+- BEG01
+- BRN01
+- BEF01
+- BRC01
+- BMA01
 
-- `AA999`
+Ahora `background.js` acepta ambos formatos:
+
+- `AA999` / `AA-999`
 - `AAA99`
-- `AA-999` (se normaliza a `AA999` solo al consultar la API)
 
-## Instalación
+## Archivo a reemplazar
 
-1. Cierra o deja abierta la web; no importa.
-2. Copia `extension/uni-content.js` de este parche.
-3. Reemplaza:
+Copia:
 
-   `C:\Proyectos\uni-bocchi-monitor\extension\uni-content.js`
+`extension/background.js`
 
-4. En Brave abre `brave://extensions/`.
-5. Busca **UNI Bocchi Bridge** y pulsa **Recargar**.
-6. Refresca la pestaña de Matrícula UNI con `Ctrl + F5`.
-7. Refresca UNI Bocchi Monitor con `Ctrl + F5`.
-8. En `Todos los cursos`, filtra el ciclo deseado y pulsa ↻ en `BRN01` o `BRC01`.
+sobre:
 
-No es necesario desplegar Vercel para probar este hotfix porque cambia únicamente la extensión local.
+`C:\Proyectos\uni-bocchi-monitor\extension\background.js`
+
+## Después de copiar
+
+1. Abre `brave://extensions/`.
+2. Busca **UNI Bocchi Bridge**.
+3. Pulsa **Recargar**.
+4. Recarga con `Ctrl + F5` la página de Matrícula UNI.
+5. Recarga con `Ctrl + F5` UNI Bocchi Monitor.
+6. Ve a **Todos los cursos**.
+7. Filtra de nuevo y pulsa `Actualizar filtrados`, o usa `↻` únicamente en BEG01 o BRN01.
+
+## Resultado esperado
+
+Los códigos `BEG01` y `BRN01` ya no deben ser eliminados por el background de la extensión y deben llegar a la petición `/api/matricula/cursos/{codigo}/horarios`.
+
+No es necesario modificar Vercel: este hotfix solo cambia la extensión local.

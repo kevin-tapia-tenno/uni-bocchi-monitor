@@ -198,7 +198,7 @@ async function sync() {
 async function collectAllCourses(rawCodes = []) {
   const codes = [...new Set((Array.isArray(rawCodes) ? rawCodes : [])
     .map((value) => String(value || '').trim().toUpperCase())
-    .filter((value) => /^[A-Z]{2}-?\d{3}$/.test(value)))]
+    .filter((value) => /^(?:[A-Z]{2}-?\d{3}|[A-Z]{3}\d{2})$/.test(value)))]
     .slice(0, 12)
 
   if (!codes.length) {

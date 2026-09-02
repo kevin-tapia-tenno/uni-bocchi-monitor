@@ -1,2 +1,2 @@
-v1.11.2
-Fix: aceptar códigos FIIS AAA99 (BRN01, BRC01, BEF01, etc.) además de AA999 y SW-999.
+v1.11.3
+Hotfix: background.js acepta códigos FIIS base de 3 letras + 2 dígitos (BEG01, BRN01, etc.).
