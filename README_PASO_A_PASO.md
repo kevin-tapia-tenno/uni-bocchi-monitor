@@ -1,51 +1,49 @@
-# UNI Bocchi Monitor — Hotfix v1.11.3
+# UNI Bocchi Monitor · Parche v1.12
 
 ## Qué corrige
+En "Todos los cursos", una sección podía mostrar solo un profesor aunque la Carga Horaria Oficial 2026-2 asignara docentes distintos a teoría, práctica o laboratorio.
 
-El hotfix v1.11.2 corrigió la validación dentro de `uni-content.js`, pero quedaba una segunda validación en `background.js`.
+Ahora cada sección muestra cada asignación docente por separado, de forma compacta:
 
-Esa validación todavía aceptaba únicamente códigos con 2 letras + 3 dígitos, por ejemplo:
+- (T) Teoría
+- (P) Práctica / PRA / PC
+- (L) Laboratorio / PC-LAB
 
-- HU501
-- SI505
-- SW503
-- SW-603
+Ejemplo esperado para una sección con dos docentes:
 
-Por eso códigos base FIIS de 3 letras + 2 dígitos eran descartados antes de llegar a `uni-content.js`, por ejemplo:
+(T) ROMERO AQUINO, JUAN CARLOS · Mar 14:00–16:00 · S4-213 · Mié 08:00–10:00 · S4-111
+(L) SALCEDO TORRES, JOAQUIN MAGNOT · Lun 14:00–16:00 · LAB-FISI/S4-212
 
-- BEG01
-- BRN01
-- BEF01
-- BRC01
-- BMA01
+## Archivos que reemplaza
+Copia la carpeta `web` del parche sobre:
 
-Ahora `background.js` acepta ambos formatos:
+`C:\Proyectos\uni-bocchi-monitor\web`
 
-- `AA999` / `AA-999`
-- `AAA99`
+Reemplaza estos archivos:
 
-## Archivo a reemplazar
+- `web/src/components/AllCoursesView.jsx`
+- `web/src/data/allCoursesCatalog.js`
+- `web/src/styles.css`
 
-Copia:
+## Importante
+No modifica la extensión. No modifica la lógica de consultas, filtros, refresh individual ni actualización manual de "Todos los cursos".
 
-`extension/background.js`
+El catálogo fue enriquecido usando la misma Carga Horaria Oficial 2026-2: ahora cada bloque horario conserva su propio profesor.
 
-sobre:
+## Probar localmente
+En VS Code:
 
-`C:\Proyectos\uni-bocchi-monitor\extension\background.js`
+```powershell
+cd C:\Proyectos\uni-bocchi-monitor\web
+npm run dev
+```
 
-## Después de copiar
+Luego abre el monitor, haz Ctrl+F5 y revisa por ejemplo Física I / Física II. En las secciones con profesor distinto para laboratorio deberían aparecer dos filas docentes.
 
-1. Abre `brave://extensions/`.
-2. Busca **UNI Bocchi Bridge**.
-3. Pulsa **Recargar**.
-4. Recarga con `Ctrl + F5` la página de Matrícula UNI.
-5. Recarga con `Ctrl + F5` UNI Bocchi Monitor.
-6. Ve a **Todos los cursos**.
-7. Filtra de nuevo y pulsa `Actualizar filtrados`, o usa `↻` únicamente en BEG01 o BRN01.
-
-## Resultado esperado
-
-Los códigos `BEG01` y `BRN01` ya no deben ser eliminados por el background de la extensión y deben llegar a la petición `/api/matricula/cursos/{codigo}/horarios`.
-
-No es necesario modificar Vercel: este hotfix solo cambia la extensión local.
+## Publicar
+```powershell
+cd C:\Proyectos\uni-bocchi-monitor
+git add .
+git commit -m "Mostrar multiples docentes por seccion v1.12"
+git push
+```

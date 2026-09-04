@@ -1,0 +1,8 @@
+1) Cierra el servidor de desarrollo si está ejecutándose.
+2) Descomprime este ZIP.
+3) Copia la carpeta web sobre C:\Proyectos\uni-bocchi-monitor\web
+4) Acepta reemplazar los 3 archivos.
+5) Ejecuta npm run dev dentro de web.
+6) Ctrl+F5 en UNI Bocchi Monitor.
+7) En "Todos los cursos", filtra Física I o Física II y verifica secciones con varios docentes.
+8) Si todo está bien: git add . && git commit && git push.

@@ -1,2 +1,3 @@
-v1.11.3
-Hotfix: background.js acepta códigos FIIS base de 3 letras + 2 dígitos (BEG01, BRN01, etc.).
+UNI Bocchi Monitor · PARCHE v1.12
+Mejora: múltiples docentes por sección según tipo de clase (T/P/L).
+Base: v1.11 + hotfixes de extensión anteriores compatibles.

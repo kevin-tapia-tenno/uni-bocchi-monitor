@@ -85,13 +85,96 @@ function scheduleText(item) {
   const start = cleanTime(item?.horaInicio ?? item?.start)
   const end = cleanTime(item?.horaFin ?? item?.end)
   const room = item?.aula || item?.room || ''
-  const type = item?.concepto || item?.type || ''
-  return `${day} ${start || '—'}–${end || '—'}${room ? ` · ${room}` : ''}${type ? ` · ${type}` : ''}`
+  return `${day} ${start || '—'}–${end || '—'}${room ? ` · ${room}` : ''}`
 }
 
-function liveProfessor(section, fallback) {
-  const fromLive = (section?.horario || []).find((item) => item?.docente)?.docente
-  return prettyProfessor(fromLive || fallback?.professor || '')
+function normalizedDayKey(value = '') {
+  const raw = String(value || '').trim()
+  const display = DAY_LABEL[raw] || raw
+  return display.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+}
+
+function normalizeRoom(value = '') {
+  return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase()
+}
+
+function normalizeRole(value = '') {
+  const raw = String(value || '').trim().toUpperCase()
+  if (!raw) return '—'
+  if (/LAB|LABORATOR/.test(raw)) return 'L'
+  if (/^(PRA|P|PC)\b/.test(raw) || /PRACT/.test(raw)) return 'P'
+  if (/^(T|TEO)\b/.test(raw) || /TEOR/.test(raw)) return 'T'
+  return raw.length <= 3 ? raw : raw.slice(0, 2)
+}
+
+function roleTitle(role) {
+  if (role === 'T') return 'Teoría'
+  if (role === 'P') return 'Práctica'
+  if (role === 'L') return 'Laboratorio'
+  return 'Tipo de clase'
+}
+
+function findFallbackSlot(item, fallbackSchedule = []) {
+  if (!item || !fallbackSchedule.length) return null
+  const day = normalizedDayKey(item?.dia ?? item?.day)
+  const start = cleanTime(item?.horaInicio ?? item?.start)
+  const end = cleanTime(item?.horaFin ?? item?.end)
+  const room = normalizeRoom(item?.aula ?? item?.room)
+
+  const sameTime = fallbackSchedule.filter((slot) => (
+    normalizedDayKey(slot?.day ?? slot?.dia) === day
+    && cleanTime(slot?.start ?? slot?.horaInicio) === start
+    && cleanTime(slot?.end ?? slot?.horaFin) === end
+  ))
+  if (sameTime.length <= 1) return sameTime[0] || null
+  return sameTime.find((slot) => normalizeRoom(slot?.room ?? slot?.aula) === room) || sameTime[0] || null
+}
+
+function teachingAssignments(section, fallback) {
+  const liveSchedule = Array.isArray(section?.horario) ? section.horario : []
+  const fallbackSchedule = Array.isArray(fallback?.schedule) ? fallback.schedule : []
+  const source = liveSchedule.length ? liveSchedule : fallbackSchedule
+
+  if (!source.length) {
+    return [{ role: '—', professor: prettyProfessor(fallback?.professor || ''), schedule: [] }]
+  }
+
+  const groups = new Map()
+  for (const item of source) {
+    const matchedFallback = liveSchedule.length ? findFallbackSlot(item, fallbackSchedule) : item
+    const rawType = matchedFallback?.type || item?.concepto || item?.type || ''
+    const role = normalizeRole(rawType)
+    const professor = prettyProfessor(
+      matchedFallback?.professor
+      || item?.docente
+      || item?.professor
+      || fallback?.professor
+      || '',
+    )
+    const key = `${role}::${professor}`
+    if (!groups.has(key)) groups.set(key, { role, professor, schedule: [], rawType })
+
+    const group = groups.get(key)
+    const identity = `${normalizedDayKey(item?.dia ?? item?.day)}|${cleanTime(item?.horaInicio ?? item?.start)}|${cleanTime(item?.horaFin ?? item?.end)}|${normalizeRoom(item?.aula ?? item?.room)}`
+    if (!group._seen) group._seen = new Set()
+    if (!group._seen.has(identity)) {
+      group._seen.add(identity)
+      group.schedule.push(item)
+    }
+  }
+
+  const roleOrder = { T: 1, P: 2, L: 3, '—': 9 }
+  return [...groups.values()]
+    .map(({ _seen, ...group }) => group)
+    .sort((a, b) => (roleOrder[a.role] || 8) - (roleOrder[b.role] || 8) || a.professor.localeCompare(b.professor, 'es'))
+}
+
+function fallbackProfessorSearchText(course) {
+  return (course.fallbackSections || []).flatMap((section) => [
+    section.professor || '',
+    ...(section.professors || []),
+    ...(section.schedule || []).map((slot) => slot.professor || ''),
+  ]).join(' ')
 }
 
 function careerPlanEntries(course, career, plan = 'all') {
@@ -252,15 +335,29 @@ function AllCourseCard({ course, live, career, plan, onRetry, retrying, refreshB
       <div className="all-course-sections">
         {sections.map((section) => {
           const fallback = section._fallback
-          const schedule = (section.horario?.length ? section.horario : fallback?.schedule) || []
+          const assignments = teachingAssignments(section, fallback)
           return (
             <div className="all-section-row" key={`${course.code}-${section.seccion}`}>
               <div className="all-section-info">
                 <span className="all-section-chip">{section.seccion}</span>
                 <div className="all-section-text">
-                  <strong>{liveProfessor(section, fallback)}</strong>
-                  <div className="all-schedule-list">
-                    {schedule.length ? schedule.map((item, index) => <span key={`${course.code}-${section.seccion}-${index}`}>{scheduleText(item)}</span>) : <span>Horario por publicar</span>}
+                  <div className="all-teaching-list">
+                    {assignments.map((assignment, assignmentIndex) => (
+                      <div className="all-teaching-row" key={`${course.code}-${section.seccion}-${assignment.role}-${assignment.professor}-${assignmentIndex}`}>
+                        <span
+                          className={`all-role-chip role-${String(assignment.role || 'x').toLowerCase()}`}
+                          title={roleTitle(assignment.role)}
+                        >
+                          ({assignment.role})
+                        </span>
+                        <strong className="all-teacher-name" title={assignment.professor}>{assignment.professor}</strong>
+                        <div className="all-schedule-list">
+                          {assignment.schedule.length
+                            ? assignment.schedule.map((item, index) => <span key={`${course.code}-${section.seccion}-${assignmentIndex}-${index}`}>{scheduleText(item)}</span>)
+                            : <span>Horario por publicar</span>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -306,7 +403,7 @@ export default function AllCoursesView({ bridge }) {
       .filter((course) => courseMatchesCycle(course, career, plan, cycle))
       .filter((course) => {
         if (!q) return true
-        const professors = (course.fallbackSections || []).map((s) => s.professor || '').join(' ')
+        const professors = fallbackProfessorSearchText(course)
         return `${course.code} ${course.name} ${professors}`.toLocaleLowerCase('es-PE').includes(q)
       })
       .sort((a, b) => entrySort(a, b, career, plan))
