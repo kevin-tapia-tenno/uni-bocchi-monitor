@@ -1,0 +1,18 @@
+UNI Bocchi Monitor — Parche v1.12.1
+
+1. Cierra npm run dev si está abierto (Ctrl+C).
+2. Copia la carpeta "web" de este parche sobre:
+   C:\Proyectos\uni-bocchi-monitor\web
+3. Acepta reemplazar los archivos.
+4. Ejecuta:
+   cd C:\Proyectos\uni-bocchi-monitor\web
+   npm run dev
+5. En el navegador usa Ctrl+F5.
+
+Cambios:
+- T/P/L ya se muestran SIN paréntesis.
+- El tipo de clase se obtiene únicamente de los bloques reales de la carga horaria.
+- No se inventa T, P o L cuando una sección no lo tiene.
+- P, PRA y PC se muestran como P.
+- LAB y PC / LAB se muestran como L.
+- Mantiene separados profesor + tipo + horarios cuando hay varios docentes.

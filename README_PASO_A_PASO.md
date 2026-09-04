@@ -1,49 +1,47 @@
-# UNI Bocchi Monitor · Parche v1.12
+# UNI Bocchi Monitor — v1.12.1
+
+Este hotfix se aplica encima de **v1.12**.
 
 ## Qué corrige
-En "Todos los cursos", una sección podía mostrar solo un profesor aunque la Carga Horaria Oficial 2026-2 asignara docentes distintos a teoría, práctica o laboratorio.
 
-Ahora cada sección muestra cada asignación docente por separado, de forma compacta:
+- Los chips ahora dicen `T`, `P` o `L`, sin paréntesis.
+- La interfaz no supone que todos los cursos tengan la misma estructura.
+- Cada sección muestra únicamente los tipos de clase que realmente aparecen en la carga horaria oficial 2026-2.
 
-- (T) Teoría
-- (P) Práctica / PRA / PC
-- (L) Laboratorio / PC-LAB
+Normalización usada:
 
-Ejemplo esperado para una sección con dos docentes:
+- `T`, `TEO`, `TEORÍA` → **T**
+- `P`, `PRA`, `PC`, `PRÁCTICA` → **P**
+- `LAB`, `LABORATORIO`, `PC / LAB` → **L**
 
-(T) ROMERO AQUINO, JUAN CARLOS · Mar 14:00–16:00 · S4-213 · Mié 08:00–10:00 · S4-111
-(L) SALCEDO TORRES, JOAQUIN MAGNOT · Lun 14:00–16:00 · LAB-FISI/S4-212
+Por eso son válidas, entre otras, secciones con:
 
-## Archivos que reemplaza
-Copia la carpeta `web` del parche sobre:
+- solo `P`
+- solo `T`
+- `T + P`
+- `T + L`
+- `T + P + L`
+
+No se crea una fila T/P/L si ese tipo no existe para la sección.
+
+## Instalación
+
+Copia la carpeta `web` sobre:
 
 `C:\Proyectos\uni-bocchi-monitor\web`
 
-Reemplaza estos archivos:
+y acepta reemplazar los archivos.
 
-- `web/src/components/AllCoursesView.jsx`
-- `web/src/data/allCoursesCatalog.js`
-- `web/src/styles.css`
-
-## Importante
-No modifica la extensión. No modifica la lógica de consultas, filtros, refresh individual ni actualización manual de "Todos los cursos".
-
-El catálogo fue enriquecido usando la misma Carga Horaria Oficial 2026-2: ahora cada bloque horario conserva su propio profesor.
-
-## Probar localmente
-En VS Code:
+Después:
 
 ```powershell
 cd C:\Proyectos\uni-bocchi-monitor\web
 npm run dev
 ```
 
-Luego abre el monitor, haz Ctrl+F5 y revisa por ejemplo Física I / Física II. En las secciones con profesor distinto para laboratorio deberían aparecer dos filas docentes.
+Haz `Ctrl + F5` en el navegador.
 
-## Publicar
-```powershell
-cd C:\Proyectos\uni-bocchi-monitor
-git add .
-git commit -m "Mostrar multiples docentes por seccion v1.12"
-git push
-```
+## Archivos modificados
+
+- `web/src/components/AllCoursesView.jsx`
+- `web/src/styles.css`

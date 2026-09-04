@@ -882,7 +882,7 @@ body::before {
   padding-top: 9px;
   border-top: 1px solid rgba(255,255,255,.05);
   color: #776b75;
-  font-size: 8.5px;
+  font-size: 9px;
 }
 .turn-foot span { display: inline-flex; align-items: center; gap: 5px; }
 .turn-foot .ok { color: var(--good); }
@@ -1309,7 +1309,7 @@ body::before {
 }
 
 /* ================================================================
-   v1.12 · MÚLTIPLES DOCENTES POR SECCIÓN (T / P / L)
+   v1.12.1 · TIPOS DE CLASE REALES + CHIP COMPACTO T/P/L
    ================================================================ */
 .all-section-text {
   flex: 1 1 auto;
@@ -1332,11 +1332,12 @@ body::before {
 
 .all-role-chip {
   flex: 0 0 auto;
-  min-width: 28px;
+  min-width: 20px;
+  width: 20px;
   height: 20px;
   display: inline-grid;
   place-items: center;
-  padding: 0 5px;
+  padding: 0;
   border-radius: 6px;
   border: 1px solid rgba(220,100,150,.22);
   background: rgba(220,100,150,.08);

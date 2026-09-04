@@ -1,3 +1,3 @@
-UNI Bocchi Monitor · PARCHE v1.12
-Mejora: múltiples docentes por sección según tipo de clase (T/P/L).
-Base: v1.11 + hotfixes de extensión anteriores compatibles.
+v1.12.1
+Base: v1.12
+Cambio: etiquetas T/P/L sin paréntesis y visualización estrictamente basada en los tipos reales presentes en cada sección.

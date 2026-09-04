@@ -99,11 +99,23 @@ function normalizeRoom(value = '') {
 }
 
 function normalizeRole(value = '') {
-  const raw = String(value || '').trim().toUpperCase()
+  const raw = String(value || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+
   if (!raw) return '—'
+
+  // La carga horaria 2026-2 usa principalmente:
+  // T = teoría, P/PRA/PC = práctica, LAB o PC / LAB = laboratorio.
+  // Importante: NO inventamos tipos faltantes. Solo se muestra lo que existe
+  // realmente en los bloques horarios de cada sección.
   if (/LAB|LABORATOR/.test(raw)) return 'L'
-  if (/^(PRA|P|PC)\b/.test(raw) || /PRACT/.test(raw)) return 'P'
-  if (/^(T|TEO)\b/.test(raw) || /TEOR/.test(raw)) return 'T'
+  if (/^(P|PRA|PC)(\b|\s|$)/.test(raw) || /PRACT/.test(raw)) return 'P'
+  if (/^(T|TEO)(\b|\s|$)/.test(raw) || /TEOR/.test(raw)) return 'T'
+
   return raw.length <= 3 ? raw : raw.slice(0, 2)
 }
 
@@ -348,7 +360,7 @@ function AllCourseCard({ course, live, career, plan, onRetry, retrying, refreshB
                           className={`all-role-chip role-${String(assignment.role || 'x').toLowerCase()}`}
                           title={roleTitle(assignment.role)}
                         >
-                          ({assignment.role})
+                          {assignment.role}
                         </span>
                         <strong className="all-teacher-name" title={assignment.professor}>{assignment.professor}</strong>
                         <div className="all-schedule-list">
