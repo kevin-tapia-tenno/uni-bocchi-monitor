@@ -20,10 +20,12 @@ import {
   Star,
   Volume2,
   VolumeX,
+  UsersRound,
   X,
 } from 'lucide-react'
 import CourseCard from './components/CourseCard'
 import AllCoursesView from './components/AllCoursesView'
+import ParticipantsView from './components/ParticipantsView'
 import { getEnrollmentTurn, openEnrollment, openUni, pingBridge, syncUni } from './lib/uniBridge'
 import { playEffect, playRandomUiSound, setBgm, setBgmVolume } from './lib/audio'
 import { bocchiTip, minFree, randomRecommendationTarget, safeRefreshSeconds, totalFree } from './lib/vacancy'
@@ -552,6 +554,7 @@ function App() {
         <nav className="nav-block">
           <button className={`nav-item ${activeView === 'monitor' ? 'active' : ''}`} onClick={() => setActiveView('monitor')}><Sparkles size={17}/> Monitor</button>
           <button className={`nav-item ${activeView === 'all' ? 'active' : ''}`} onClick={() => setActiveView('all')}><LibraryBig size={17}/> Todos los cursos</button>
+          <button className={`nav-item ${activeView === 'participants' ? 'active' : ''}`} onClick={() => setActiveView('participants')}><UsersRound size={17}/> Participantes</button>
           <button className="nav-item" onClick={() => { setActiveView('monitor'); window.setTimeout(() => document.getElementById('turn-panel')?.scrollIntoView({ behavior: 'smooth' }), 50) }}><CalendarClock size={17}/> Mi turno</button>
           <button className="nav-item" onClick={() => { setActiveView('monitor'); window.setTimeout(() => document.getElementById('plan-panel')?.scrollIntoView({ behavior: 'smooth' }), 50) }}><ListChecks size={17}/> Mi plan</button>
           <button className="nav-item" onClick={() => { setActiveView('monitor'); setSort('urgent') }}><BellRing size={17}/> Prioridad</button>
@@ -574,8 +577,8 @@ function App() {
         <header className="topbar">
           <div>
             <div className="eyebrow">MATRÍCULA · 2026-2</div>
-            <h1>{activeView === 'all' ? 'Todos los Cursos FIIS' : 'Monitor de Vacantes UNI'}</h1>
-            <p>{activeView === 'all' ? 'Cursos aperturados por carrera y ciclo, con vacantes actualizadas de forma escalonada.' : 'Vacantes en vivo, plan de matrícula y alerta de tu turno en una sola vista.'}</p>
+            <h1>{activeView === 'all' ? 'Todos los Cursos FIIS' : activeView === 'participants' ? 'Participantes FIIS' : 'Monitor de Vacantes UNI'}</h1>
+            <p>{activeView === 'all' ? 'Cursos aperturados por carrera y ciclo, con vacantes actualizadas de forma escalonada.' : activeView === 'participants' ? 'Consulta manual de alumnos visibles en las aulas UniVirtual de la carga vigente 2026-2.' : 'Vacantes en vivo, plan de matrícula y alerta de tu turno en una sola vista.'}</p>
           </div>
 
           <div className="top-actions">
@@ -603,6 +606,8 @@ function App() {
 
         {activeView === 'all' ? (
           <AllCoursesView bridge={bridge} />
+        ) : activeView === 'participants' ? (
+          <ParticipantsView bridge={bridge} />
         ) : (
           <>
         <section id="turn-panel" className={`turn-panel ${phase}`}>

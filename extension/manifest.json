@@ -1,17 +1,21 @@
 {
   "manifest_version": 3,
   "name": "UNI Bocchi Bridge",
-  "version": "1.2.0",
-  "description": "Puente local entre UNI Bocchi Monitor y Matrícula UNI, con consulta escalonada de vacantes para cursos aperturados.",
+  "version": "1.3.0",
+  "description": "Puente local entre UNI Bocchi Monitor, Matrícula UNI y UniVirtual, con vacantes y consulta manual de participantes de aulas accesibles.",
   "permissions": [
     "tabs",
     "storage"
   ],
   "host_permissions": [
-    "https://matricula-alumno.uni.edu.pe/*"
+    "https://matricula-alumno.uni.edu.pe/*",
+    "https://univirtual.uni.pe/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
   },
   "content_scripts": [
     {
@@ -20,6 +24,15 @@
       ],
       "js": [
         "uni-content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://univirtual.uni.pe/*"
+      ],
+      "js": [
+        "moodle-content.js"
       ],
       "run_at": "document_idle"
     },
@@ -43,5 +56,16 @@
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "uni-bocchi-monitor@local.invalid",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    },
+    "gecko_android": {}
   }
 }

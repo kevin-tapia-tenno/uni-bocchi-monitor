@@ -50,3 +50,7 @@ export async function openEnrollment() {
 export async function getAllCourseVacancies(codes) {
   return request('ALL_COURSES', { codes }, 90000)
 }
+
+export async function getCourseParticipants(payload) {
+  return request('PARTICIPANTS', payload, 90000)
+}

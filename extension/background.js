@@ -1,6 +1,7 @@
 const UNI_BASE = 'https://matricula-alumno.uni.edu.pe'
 const COURSES_URL = `${UNI_BASE}/cursos-disponibles`
 const ENROLLMENT_URL = `${UNI_BASE}/matricula`
+const MOODLE_BASE = 'https://univirtual.uni.pe'
 
 const WORKER_TAB_KEY = 'uniBocchiWorkerTabId'
 const TURN_CACHE_KEY = 'uniBocchiTurnCache'
@@ -159,6 +160,55 @@ async function reloadAndSend(tabId, message) {
   await chrome.tabs.reload(tabId)
   await waitTabComplete(tabId)
   return sendToUniTab(tabId, message)
+}
+
+
+async function sendToMoodleTab(tabId, message, attempts = 30) {
+  let lastError
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await chrome.tabs.sendMessage(tabId, message)
+    } catch (error) {
+      lastError = error
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+  }
+  throw lastError || new Error('MOODLE_CONTENT_NOT_READY')
+}
+
+function isMoodleUrl(url = '') {
+  try { return new URL(url).origin === MOODLE_BASE } catch { return false }
+}
+
+async function collectParticipants(payload = {}) {
+  const courseId = Number(payload?.courseId)
+  if (!Number.isInteger(courseId) || courseId <= 0) return { ok: false, error: 'INVALID_MOODLE_COURSE_ID' }
+
+  const url = `${MOODLE_BASE}/user/index.php?id=${encodeURIComponent(courseId)}`
+  let tabId = null
+
+  try {
+    const tab = await chrome.tabs.create({ url, active: false })
+    tabId = tab.id
+    const loaded = await waitTabComplete(tab.id, 25000)
+    const finalUrl = loaded?.url || ''
+
+    if (!isMoodleUrl(finalUrl)) return { ok: false, error: 'MOODLE_SESSION_REQUIRED' }
+
+    const parsed = new URL(finalUrl)
+    if (/\/login\//i.test(parsed.pathname)) return { ok: false, error: 'MOODLE_SESSION_REQUIRED' }
+    if (/\/enrol\/index\.php/i.test(parsed.pathname)) return { ok: false, error: 'MOODLE_ACCESS_DENIED' }
+    if (!/\/user\/index\.php$/i.test(parsed.pathname) || Number(parsed.searchParams.get('id')) !== courseId) {
+      return { ok: false, error: 'MOODLE_ACCESS_DENIED' }
+    }
+
+    const response = await sendToMoodleTab(tab.id, { type: 'MOODLE_COLLECT_PARTICIPANTS', courseId })
+    return response?.ok ? response : { ok: false, error: response?.error || 'MOODLE_PARTICIPANTS_ERROR' }
+  } catch (error) {
+    return { ok: false, error: error.message || String(error) }
+  } finally {
+    if (Number.isInteger(tabId)) await chrome.tabs.remove(tabId).catch(() => {})
+  }
 }
 
 async function sync() {
@@ -347,6 +397,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'WEB_TURN') {
     collectTurn()
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
+    return true
+  }
+
+  if (message?.type === 'WEB_PARTICIPANTS') {
+    collectParticipants(message?.payload || {})
       .then(sendResponse)
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }))
     return true
